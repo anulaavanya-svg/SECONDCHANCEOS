@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { getToken } from 'next-auth/jwt'
+import { resolveAuthSecretEdge } from '@/lib/auth-secret'
 import type { UserRole } from '@prisma/client'
 
 const ROLE_HOME: Record<string, string> = {
@@ -20,7 +21,7 @@ const SECTION_ACCESS: { prefix: string; roles: UserRole[] }[] = [
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
-  const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET })
+  const token = await getToken({ req: request, secret: await resolveAuthSecretEdge() })
 
   const isAuthPage = pathname === '/login' || pathname === '/signup'
 
