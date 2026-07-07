@@ -1,0 +1,272 @@
+// SecondChanceOS — Prisma schema
+//
+// SECURITY CONSTRAINT: The ComplianceRecord model holds criminal-history
+// adjudication data. It must NEVER be joined to CandidateAssessment, any
+// analytics query, or any route accessible to MANAGER / EMPLOYEE /
+// RESEARCHER roles. Access is restricted to the admin-only compliance flow.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Organization {
+  id         String   @id @default(cuid())
+  name       String   @unique
+  industry   String?
+  headcount  Int?
+  planTier   String   @default("core")
+  createdAt  DateTime @default(now())
+
+  sites      Site[]
+  users      User[]
+  employees  Employee[]
+  candidates Candidate[]
+  surveys    Survey[]
+  reports    Report[]
+}
+
+model Site {
+  id             String  @id @default(cuid())
+  organizationId String
+  name           String
+  city           String?
+  state          String?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  users        User[]
+  employees    Employee[]
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  EMPLOYEE
+  RESEARCHER
+}
+
+model User {
+  id             String   @id @default(cuid())
+  organizationId String
+  email          String   @unique
+  passwordHash   String?
+  fullName       String
+  role           UserRole @default(EMPLOYEE)
+  siteId         String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  organization        Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  site                Site?                @relation(fields: [siteId], references: [id])
+  employeeProfile     Employee?            @relation("employeeUser")
+  managedEmployees    Employee[]           @relation("managerRelation")
+  mentoredEmployees   Employee[]           @relation("mentorRelation")
+  mentorLogs          MentorLog[]
+  trainingCompletions TrainingCompletion[]
+}
+
+enum CandidateStatus {
+  APPLIED
+  ASSESSED
+  INTERVIEWED
+  OFFER
+  HIRED
+  REJECTED
+}
+
+model Candidate {
+  id             String          @id @default(cuid())
+  organizationId String
+  fullName       String
+  email          String?
+  roleApplied    String
+  certifications String[]
+  source         String?
+  status         CandidateStatus @default(APPLIED)
+  createdAt      DateTime        @default(now())
+
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assessment   CandidateAssessment?
+  // CRITICAL: compliance is separate from assessment and access-restricted.
+  compliance   ComplianceRecord?
+  employee     Employee?
+}
+
+model CandidateAssessment {
+  id               String   @id @default(cuid())
+  candidateId      String   @unique
+  skillsScore      Float // 0-100
+  reliabilityScore Float // 0-100
+  growthScore      Float // 0-100
+  readinessScore   Float // 0-100
+  compositeScore   Float // skills*0.3 + reliability*0.3 + growth*0.2 + readiness*0.2
+  recommendation   String // recommended | recommended_with_support | needs_review
+  notes            String?
+  assessedBy       String
+  assessedAt       DateTime @default(now())
+
+  candidate Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+}
+
+enum ComplianceStatus {
+  PENDING
+  CLEARED
+  CONDITIONAL
+  NOT_CLEARED
+}
+
+// SENSITIVE: criminal history stored here ONLY.
+// Never joins to CandidateAssessment or any analytics.
+model ComplianceRecord {
+  id            String           @id @default(cuid())
+  candidateId   String           @unique
+  summary       String?
+  status        ComplianceStatus @default(PENDING)
+  notes         String?
+  adjudicatedAt DateTime?
+
+  candidate Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+}
+
+model Employee {
+  id                String    @id @default(cuid())
+  organizationId    String
+  userId            String?   @unique
+  candidateId       String?   @unique
+  siteId            String?
+  managerId         String?
+  mentorId          String?
+  jobTitle          String
+  hireDate          DateTime
+  onboardingStage   String    @default("stabilization")
+  employmentStatus  String    @default("active")
+  terminationReason String?
+  terminationDate   DateTime?
+
+  organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user               User?               @relation("employeeUser", fields: [userId], references: [id])
+  candidate          Candidate?          @relation(fields: [candidateId], references: [id])
+  site               Site?               @relation(fields: [siteId], references: [id])
+  manager            User?               @relation("managerRelation", fields: [managerId], references: [id])
+  mentor             User?               @relation("mentorRelation", fields: [mentorId], references: [id])
+  onboardingTasks    OnboardingTask[]
+  mentorLogs         MentorLog[]
+  managerActions     ManagerAction[]
+  performanceMetrics PerformanceMetric[]
+  surveyResponses    SurveyResponse[]
+}
+
+model OnboardingTask {
+  id          String    @id @default(cuid())
+  employeeId  String
+  phase       String // day1 | d1_30 | d30_60 | d60_90
+  title       String
+  isComplete  Boolean   @default(false)
+  completedAt DateTime?
+  dueByDay    Int?
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+}
+
+model MentorLog {
+  id          String   @id @default(cuid())
+  employeeId  String
+  mentorId    String
+  contactDate DateTime @default(now())
+  channel     String? // in_person | message | call | email
+  notes       String?
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  mentor   User     @relation(fields: [mentorId], references: [id])
+}
+
+model ManagerAction {
+  id             String   @id @default(cuid())
+  employeeId     String
+  managerId      String
+  issueType      String // attendance | conflict | performance | communication
+  decisionPath   Json // array of node ids traversed
+  resolutionNote String?
+  isResolved     Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+}
+
+model Survey {
+  id             String  @id @default(cuid())
+  organizationId String
+  title          String
+  waveLabel      String? // day_14 | day_30 | day_60 | day_90
+  questions      Json // [{key, text, type: "scale"|"text"}]
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  responses    SurveyResponse[]
+}
+
+model SurveyResponse {
+  id          String   @id @default(cuid())
+  surveyId    String
+  employeeId  String?
+  responses   Json // {question_key: score_or_text}
+  submittedAt DateTime @default(now())
+
+  survey   Survey    @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  employee Employee? @relation(fields: [employeeId], references: [id])
+}
+
+model PerformanceMetric {
+  id              String   @id @default(cuid())
+  employeeId      String
+  metricDate      DateTime @default(now())
+  attendanceRate  Float?
+  engagementScore Float?
+  promotionFlag   Boolean  @default(false)
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+}
+
+model TrainingModule {
+  id          String   @id @default(cuid())
+  title       String
+  audience    UserRole
+  description String?
+
+  completions TrainingCompletion[]
+}
+
+model TrainingCompletion {
+  id          String   @id @default(cuid())
+  userId      String
+  moduleId    String
+  completedAt DateTime @default(now())
+
+  user   User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  module TrainingModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, moduleId])
+}
+
+model Report {
+  id             String   @id @default(cuid())
+  organizationId String
+  reportType     String
+  data           Json?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String?
+  type      String
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}

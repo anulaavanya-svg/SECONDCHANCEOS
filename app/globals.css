@@ -1,0 +1,37 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary: #1d3557;
+  --accent: #1e9e76;
+  --warn: #c2703d;
+  --surface: #ffffff;
+  --bg: #f3f5f8;
+  --border: #e1e4ea;
+  --text: #12172b;
+  --muted: #6b7280;
+}
+
+body {
+  @apply bg-bg text-ink font-body antialiased;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  @apply font-display;
+}
+
+/* Thin, unobtrusive scrollbars for panels */
+.scroll-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: #cdd3dd;
+  border-radius: 3px;
+}
