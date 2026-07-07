@@ -54,13 +54,15 @@ npm run dev
 
 ## Deployment (Vercel)
 
-The repo is self-deploying: on Vercel, the `vercel-build` script runs `prisma db push` (creates the tables) and — when `SEED_DEMO_DATA=true` — seeds the demo accounts and data, then builds.
+The repo is fully self-deploying — the only requirement is a Postgres database attached to the project:
 
 1. **Import the repo** at [vercel.com/new](https://vercel.com/new) (framework auto-detects as Next.js).
-2. **Add a Postgres database**: in the project, go to **Storage → Create Database → Neon (or Prisma Postgres)** — this sets `DATABASE_URL` automatically. Alternatively set `DATABASE_URL` yourself from any hosted Postgres.
-3. **Set environment variables** (Settings → Environment Variables):
-   - `NEXTAUTH_SECRET` — any long random string (`openssl rand -base64 32`)
-   - `SEED_DEMO_DATA` = `true` — seeds demo data on deploy; remove it later if you want data to persist across deploys
-   - `ANTHROPIC_API_KEY` — optional, powers the AI assistant
-   - `NEXTAUTH_URL` — optional on Vercel (auto-detected); set it to your production URL if login misbehaves
-4. **Deploy.** Log in with `admin@secondchance.com` / `password`.
+2. **Add a Postgres database**: project → **Storage → Create Database → Neon**. Any of the standard connection variables works (`DATABASE_URL`, `POSTGRES_URL`, `POSTGRES_PRISMA_URL`, …).
+3. **Deploy.** On build, the app creates the schema (`prisma db push`) and seeds demo data automatically when the database is empty. Log in with `admin@secondchance.com` / `password`.
+
+Optional environment variables:
+
+- `NEXTAUTH_SECRET` — recommended for real production use; when unset, a stable secret is derived from the private database connection string so demos work with zero config
+- `ANTHROPIC_API_KEY` — powers the AI assistant
+- `SEED_DEMO_DATA` = `true` — forces a demo-data reset on the next deploy
+- `NEXTAUTH_URL` — auto-detected on Vercel; set explicitly only if login misbehaves

@@ -47,13 +47,20 @@ if (!dbUrl) {
 const env = { ...process.env, DATABASE_URL: dbUrl }
 const run = (cmd) => execSync(cmd, { stdio: 'inherit', env })
 
-run('prisma db push --skip-generate')
+run('npx prisma db push --skip-generate')
 
-if (process.env.SEED_DEMO_DATA === 'true') {
-  console.log('SEED_DEMO_DATA=true — seeding demo data...')
+// Seed automatically when the database is empty (first deploy), or when
+// SEED_DEMO_DATA=true forces a reset of the demo data.
+const { PrismaClient } = await import('@prisma/client')
+const prisma = new PrismaClient({ datasourceUrl: dbUrl })
+const orgCount = await prisma.organization.count()
+await prisma.$disconnect()
+
+if (orgCount === 0 || process.env.SEED_DEMO_DATA === 'true') {
+  console.log(orgCount === 0 ? 'Empty database — seeding demo data...' : 'SEED_DEMO_DATA=true — reseeding demo data...')
   run('npx tsx prisma/seed.ts')
 } else {
-  console.log('SEED_DEMO_DATA not set to "true" — skipping demo seed.')
+  console.log(`Database already has data (${orgCount} org(s)) — skipping seed.`)
 }
 
-run('next build')
+run('npx next build')
