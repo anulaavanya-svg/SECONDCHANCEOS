@@ -52,6 +52,15 @@ npm run dev
 - **RBAC at the route level:** every API route enforces role via `lib/rbac.ts`. Employees see only their own data; managers see only direct reports; researchers see only anonymized aggregates.
 - **Multi-tenant scoping:** every query filters by `organizationId` from the session JWT.
 
-## Deployment
+## Deployment (Vercel)
 
-Vercel-ready: set the env vars from `.env.example`, and the `postinstall` hook runs `prisma generate` automatically. Push the schema with `npx prisma db push` against your production database, then `vercel deploy --prod`.
+The repo is self-deploying: on Vercel, the `vercel-build` script runs `prisma db push` (creates the tables) and — when `SEED_DEMO_DATA=true` — seeds the demo accounts and data, then builds.
+
+1. **Import the repo** at [vercel.com/new](https://vercel.com/new) (framework auto-detects as Next.js).
+2. **Add a Postgres database**: in the project, go to **Storage → Create Database → Neon (or Prisma Postgres)** — this sets `DATABASE_URL` automatically. Alternatively set `DATABASE_URL` yourself from any hosted Postgres.
+3. **Set environment variables** (Settings → Environment Variables):
+   - `NEXTAUTH_SECRET` — any long random string (`openssl rand -base64 32`)
+   - `SEED_DEMO_DATA` = `true` — seeds demo data on deploy; remove it later if you want data to persist across deploys
+   - `ANTHROPIC_API_KEY` — optional, powers the AI assistant
+   - `NEXTAUTH_URL` — optional on Vercel (auto-detected); set it to your production URL if login misbehaves
+4. **Deploy.** Log in with `admin@secondchance.com` / `password`.

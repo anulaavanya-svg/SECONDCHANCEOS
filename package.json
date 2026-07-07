@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "vercel-build": "prisma generate && prisma db push && node scripts/seed-if-enabled.mjs && next build",
     "postinstall": "prisma generate",
     "start": "next start",
     "lint": "next lint",
