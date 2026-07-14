@@ -1,5 +1,6 @@
 import { PrismaClient, UserRole, CandidateStatus, ComplianceStatus } from '@prisma/client'
 import bcrypt from 'bcryptjs'
+import { seedOpportunityGraph } from './seed-opportunitygraph'
 
 const prisma = new PrismaClient()
 
@@ -93,6 +94,15 @@ async function main() {
   )
 
   // Wipe in dependency order so the seed is idempotent
+  await prisma.roadmapStep.deleteMany()
+  await prisma.roadmap.deleteMany()
+  await prisma.potentialAssessment.deleteMany()
+  await prisma.potentialProfile.deleteMany()
+  await prisma.careerSkill.deleteMany()
+  await prisma.opportunitySkill.deleteMany()
+  await prisma.career.deleteMany()
+  await prisma.opportunity.deleteMany()
+  await prisma.skill.deleteMany()
   await prisma.trainingCompletion.deleteMany()
   await prisma.trainingModule.deleteMany()
   await prisma.notification.deleteMany()
@@ -559,6 +569,9 @@ async function main() {
       message: 'You have completed your Day 1 checklist. Your stabilization phase tasks are ready.',
     },
   })
+
+  // ── OpportunityGraph AI knowledge graph + demo potential profile ─────────
+  await seedOpportunityGraph(prisma, employeeUser.id)
 
   console.log('Seed complete.')
   console.log('Demo accounts (password: "password"):')

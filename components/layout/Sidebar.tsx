@@ -15,6 +15,7 @@ const NAV: Record<string, NavItem[]> = {
   ADMIN: [
     { href: '/admin', label: 'Dashboard', icon: '📊' },
     { href: '/admin/hiring', label: 'Hiring', icon: '🗂️' },
+    { href: '/admin/opportunity', label: 'OpportunityGraph', icon: '🕸️' },
     { href: '/manager/toolkit', label: 'Manager Toolkit', icon: '🧭' },
     { href: '/researcher/console', label: 'Research', icon: '🔬' },
   ],
@@ -25,6 +26,7 @@ const NAV: Record<string, NavItem[]> = {
   ],
   EMPLOYEE: [
     { href: '/employee/onboarding', label: 'My 90-Day Plan', icon: '🗺️' },
+    { href: '/employee/opportunity', label: 'OpportunityGraph', icon: '🕸️' },
     { href: '/employee/resources', label: 'Resources', icon: '🧰' },
     { href: '/employee/surveys', label: 'Surveys', icon: '📝' },
     { href: '/employee/assistant', label: 'Assistant', icon: '💬' },

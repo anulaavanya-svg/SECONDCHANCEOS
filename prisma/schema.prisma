@@ -67,6 +67,11 @@ model User {
   mentoredEmployees   Employee[]           @relation("mentorRelation")
   mentorLogs          MentorLog[]
   trainingCompletions TrainingCompletion[]
+
+  // OpportunityGraph AI
+  potentialProfile     PotentialProfile?
+  potentialAssessments PotentialAssessment[]
+  roadmaps             Roadmap[]
 }
 
 enum CandidateStatus {
@@ -269,4 +274,186 @@ model Notification {
   message   String
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// OpportunityGraph AI — human-potential measurement + opportunity knowledge graph
+//
+// Design constraints (mirror the ComplianceRecord isolation pattern above):
+//  - Protected/sensitive attributes are NEVER inputs to any score.
+//    PotentialProfile stores only measured psychometric dimensions.
+//  - Join tables ARE the weighted edges of the knowledge graph:
+//    CareerSkill.importance and OpportunitySkill.buildsWeight carry the weights.
+//  - Declared constraints (cost, location, first-gen) CONTEXTUALIZE and FILTER
+//    opportunities; they never lower or penalize a person's potential score.
+// ═══════════════════════════════════════════════════════════════════════════
+
+model PotentialProfile {
+  id     String @id @default(cuid())
+  userId String @unique
+
+  // Nine measured dimensions, each 0-100 (see lib/opportunitygraph/potential.ts)
+  fluidReasoning      Float
+  verbalReasoning     Float
+  quantReasoning      Float
+  conscientiousness   Float
+  openness            Float
+  adaptability        Float
+  growthMindset       Float
+  selfEfficacy        Float
+  intrinsicMotivation Float
+
+  // Composite + measurement meta
+  hpi        Float // Human Potential Index, 0-100
+  confidence Float // 0-1, widens (lowers) when few items are answered
+
+  riasec       Json // Holland interest vector { R, I, A, S, E, C }, each 0-100
+  strengths    String[] // dimension keys, strongest first
+  growthLevers String[] // high-leverage dimensions to develop
+
+  // Declared context; used to CONTEXTUALIZE scoring and FILTER opportunities only
+  constraints Json? // { maxCostUsd?, needBlindOnly?, locationState?, remoteOk?, weeklyHours?, firstGen? }
+
+  // Self-declared skills the person already holds (graph: Person --has--> Skill)
+  declaredSkills Json? // [{ skillId, proficiency }]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PotentialAssessment {
+  id         String   @id @default(cuid())
+  userId     String
+  instrument String   @default("hpi-v1")
+  responses  Json // { itemId: value }
+  derived    Json // full scored-output snapshot (audit trail)
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Skill {
+  id          String  @id @default(cuid())
+  slug        String  @unique
+  name        String
+  category    String // cognitive | technical | interpersonal | foundational | creative
+  description String?
+
+  careers       CareerSkill[]
+  opportunities OpportunitySkill[]
+  roadmapSteps  RoadmapStep[]
+}
+
+model Career {
+  id               String  @id @default(cuid())
+  slug             String  @unique
+  title            String
+  cluster          String // O*NET-style career cluster
+  description      String
+  medianWageUsd    Int?
+  growthOutlook    String // declining | stable | growing | high-growth
+  typicalEducation String // hs | certificate | associate | bachelor | graduate
+  entryBarrier     Float // 0-1, higher = harder / costlier to enter
+  riasec           Json // Holland vector for the career, each 0-100
+  demands          Json // cognitive/behavioral demand targets checked against HPI, each 0-100
+
+  skills   CareerSkill[]
+  roadmaps Roadmap[]
+}
+
+// Weighted edge: Career --requires--> Skill
+model CareerSkill {
+  careerId   String
+  skillId    String
+  importance Float // 0-1 edge weight (centrality of the skill to the career)
+
+  career Career @relation(fields: [careerId], references: [id], onDelete: Cascade)
+  skill  Skill  @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@id([careerId, skillId])
+}
+
+enum OpportunityType {
+  SCHOLARSHIP
+  INTERNSHIP
+  APPRENTICESHIP
+  COURSE
+  PROGRAM
+  MENTORSHIP
+}
+
+model Opportunity {
+  id                 String          @id @default(cuid())
+  slug               String          @unique
+  title              String
+  type               OpportunityType
+  provider           String
+  description        String
+  url                String?
+  costUsd            Int             @default(0)
+  needBlind          Boolean         @default(false) // fully funded / free to eligible applicants
+  remoteOk           Boolean         @default(true)
+  locationState      String?
+  weeklyHours        Int?
+  estWeeks           Int?
+  deadline           DateTime?
+  targetsUnderserved Boolean         @default(false) // explicitly serves first-gen / low-income / reentry
+  eligibility        Json?
+
+  skills       OpportunitySkill[]
+  roadmapSteps RoadmapStep[]
+}
+
+// Weighted edge: Opportunity --builds--> Skill
+model OpportunitySkill {
+  opportunityId String
+  skillId       String
+  buildsWeight  Float // 0-1, how much this opportunity develops the skill
+
+  opportunity Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  skill       Skill       @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@id([opportunityId, skillId])
+}
+
+model Roadmap {
+  id            String   @id @default(cuid())
+  userId        String
+  careerId      String
+  title         String
+  summary       String
+  matchScore    Float // cached career match at generation time, 0-100
+  horizonMonths Int
+  createdAt     DateTime @default(now())
+
+  user   User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  career Career        @relation(fields: [careerId], references: [id])
+  steps  RoadmapStep[]
+}
+
+enum StepStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  DONE
+}
+
+model RoadmapStep {
+  id            String     @id @default(cuid())
+  roadmapId     String
+  order         Int
+  phase         String // foundation | build | launch
+  kind          String // skill | opportunity | milestone
+  title         String
+  description   String
+  estWeeks      Int?
+  skillId       String?
+  opportunityId String?
+  status        StepStatus @default(NOT_STARTED)
+  completedAt   DateTime?
+
+  roadmap     Roadmap      @relation(fields: [roadmapId], references: [id], onDelete: Cascade)
+  skill       Skill?       @relation(fields: [skillId], references: [id])
+  opportunity Opportunity? @relation(fields: [opportunityId], references: [id])
 }

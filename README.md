@@ -9,6 +9,18 @@ A behavioral science-powered HR platform that helps companies hire, onboard, sup
 3. **Manager decision toolkit** — interactive decision trees, coaching scripts, and bias-interruption training that prevent stigma-driven terminations
 4. **Real-time analytics** — retention curves, onboarding funnels, WOTC tax-credit tracking, and anonymized research exports
 
+## OpportunityGraph AI (social-mobility module)
+
+An AI module that measures *potential* rather than pedigree and maps it to real opportunities — generalizing the platform's "measure what predicts success" thesis into a career-mobility engine.
+
+- **Human Potential Index (HPI):** a nine-dimension psychometric profile (cognitive, behavioral, motivational) scored with confidence bands from a mixed instrument (situational-judgment tests, validated self-report scales, reasoning tasks). Sensitive attributes are never inputs.
+- **Explainable career matching:** a transparent, weighted algorithm (interest · aptitude · readiness · mobility · reachability − access barrier) — every match ships with its breakdown and a plain-language rationale.
+- **Opportunity knowledge graph:** People → Skills → Careers → Opportunities with weighted edges; skill-gap analysis and affordability-aware opportunity ranking (need-blind/free options up-weighted).
+- **Personalized roadmaps:** an ordered, phased path (foundation → build → launch) with trackable steps.
+- **Anonymized mobility insights:** k-anonymized cohort analytics for admins/researchers.
+
+Where it lives: `lib/opportunitygraph/` (engines) · `app/api/opportunitygraph/**` (RBAC-guarded API) · `app/(dashboard)/**/opportunity/**` (UI) · `prisma/seed-opportunitygraph.ts` (O*NET-style seed). Full strategy, ML, and research design: [`docs/OPPORTUNITYGRAPH_BLUEPRINT.md`](docs/OPPORTUNITYGRAPH_BLUEPRINT.md). Try it as `employee@secondchance.com` → **OpportunityGraph** (a demo potential profile is pre-seeded).
+
 ## Tech stack
 
 - **Frontend:** Next.js 14 (App Router), React, TypeScript, Tailwind CSS
