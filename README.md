@@ -21,6 +21,8 @@ An AI module that measures *potential* rather than pedigree and maps it to real 
 
 Where it lives: `lib/opportunitygraph/` (engines) · `app/api/opportunitygraph/**` (RBAC-guarded API) · `app/(dashboard)/**/opportunity/**` (UI) · `prisma/seed-opportunitygraph.ts` (O*NET-style seed). Full strategy, ML, and research design: [`docs/OPPORTUNITYGRAPH_BLUEPRINT.md`](docs/OPPORTUNITYGRAPH_BLUEPRINT.md). Try it as `employee@secondchance.com` → **OpportunityGraph** (a demo potential profile is pre-seeded).
 
+**Zero-setup demo:** `public/opportunitygraph-demo.html` is a fully self-contained, no-login version — the real assessment scoring, career matching, and roadmap engines run client-side. Open it directly in any browser, or visit `/opportunitygraph-demo.html` on the deployed site.
+
 ## Tech stack
 
 - **Frontend:** Next.js 14 (App Router), React, TypeScript, Tailwind CSS

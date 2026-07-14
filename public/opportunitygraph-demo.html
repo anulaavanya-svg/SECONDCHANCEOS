@@ -1,0 +1,760 @@
+<title>OpportunityGraph AI — Live Demo</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root {
+    --bg: #EAEEF4;
+    --surface: #FFFFFF;
+    --surface-2: #F3F6FA;
+    --ink: #0E1626;
+    --muted: #566579;
+    --faint: #8A97A9;
+    --line: #D9E0EA;
+    --primary: #1D3557;
+    --primary-2: #2A4A75;
+    --accent: #0F8E6C;
+    --accent-bright: #14A67F;
+    --amber: #B4642F;
+    --danger: #B23A48;
+    --shadow: 0 1px 2px rgba(14,22,38,.05), 0 8px 24px rgba(14,22,38,.06);
+    --radar: #0F8E6C;
+    --ring: rgba(15,142,108,.35);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #080F1C;
+      --surface: #101C30;
+      --surface-2: #16243B;
+      --ink: #E9F0F9;
+      --muted: #93A5C0;
+      --faint: #64778F;
+      --line: #21344C;
+      --primary: #7CA0D4;
+      --primary-2: #93B2DE;
+      --accent: #22B98C;
+      --accent-bright: #37D6A6;
+      --amber: #E39463;
+      --danger: #E0687A;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+      --radar: #22B98C;
+      --ring: rgba(34,185,140,.35);
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #EAEEF4; --surface: #FFFFFF; --surface-2: #F3F6FA; --ink: #0E1626;
+    --muted: #566579; --faint: #8A97A9; --line: #D9E0EA; --primary: #1D3557;
+    --primary-2: #2A4A75; --accent: #0F8E6C; --accent-bright: #14A67F; --amber: #B4642F;
+    --danger: #B23A48; --radar: #0F8E6C; --ring: rgba(15,142,108,.35);
+    --shadow: 0 1px 2px rgba(14,22,38,.05), 0 8px 24px rgba(14,22,38,.06);
+  }
+  :root[data-theme="dark"] {
+    --bg: #080F1C; --surface: #101C30; --surface-2: #16243B; --ink: #E9F0F9;
+    --muted: #93A5C0; --faint: #64778F; --line: #21344C; --primary: #7CA0D4;
+    --primary-2: #93B2DE; --accent: #22B98C; --accent-bright: #37D6A6; --amber: #E39463;
+    --danger: #E0687A; --radar: #22B98C; --ring: rgba(34,185,140,.35);
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  .display { font-weight: 800; letter-spacing: -.03em; line-height: 1.04; text-wrap: balance; }
+  .mono { font-family: ui-monospace, "SF Mono", "SFMono-Regular", Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; }
+  h1,h2,h3 { text-wrap: balance; }
+  a { color: inherit; }
+  button { font: inherit; cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+
+  /* Header */
+  header {
+    position: sticky; top: 0; z-index: 40;
+    background: color-mix(in srgb, var(--bg) 82%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
+  }
+  .bar { display: flex; align-items: center; justify-content: space-between; height: 62px; }
+  .brand { display: flex; align-items: center; gap: 11px; font-weight: 800; letter-spacing: -.02em; }
+  .logo { width: 30px; height: 30px; }
+  .brand small { display:block; font-weight:600; font-size:11px; letter-spacing:.06em; text-transform:uppercase; color: var(--muted); margin-top:-2px;}
+  .htools { display: flex; align-items: center; gap: 8px; }
+  .ghost {
+    background: transparent; border: 1px solid var(--line); color: var(--muted);
+    border-radius: 9px; padding: 7px 12px; font-size: 13px; font-weight: 600;
+    display: inline-flex; align-items: center; gap: 7px; transition: .15s;
+  }
+  .ghost:hover { color: var(--ink); border-color: var(--faint); }
+
+  /* Buttons */
+  .btn {
+    border: none; border-radius: 11px; padding: 12px 20px; font-weight: 700; font-size: 15px;
+    background: var(--accent); color: #fff; display: inline-flex; align-items: center; gap: 9px;
+    transition: transform .12s, background .15s, box-shadow .15s; letter-spacing: -.01em;
+  }
+  .btn:hover { background: var(--accent-bright); transform: translateY(-1px); }
+  .btn:active { transform: translateY(0); }
+  .btn.sm { padding: 8px 14px; font-size: 13px; border-radius: 9px; }
+  .btn.sec { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+  .btn.sec:hover { background: var(--surface-2); border-color: var(--faint); }
+  .btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+
+  /* Cards */
+  .card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
+    padding: 22px; box-shadow: var(--shadow);
+  }
+  .card h3 { margin: 0; font-size: 16px; letter-spacing: -.01em; }
+  .sub { color: var(--muted); font-size: 13px; margin: 3px 0 0; }
+
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700;
+    padding: 4px 10px; border-radius: 999px; letter-spacing: .01em;
+  }
+  .chip.em { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); }
+  .chip.na { background: color-mix(in srgb, var(--primary) 14%, transparent); color: var(--primary); }
+  .chip.am { background: color-mix(in srgb, var(--amber) 16%, transparent); color: var(--amber); }
+  .chip.gy { background: var(--surface-2); color: var(--muted); border: 1px solid var(--line); }
+
+  .view { animation: fade .4s ease both; }
+  @keyframes fade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .view { animation: none; } .btn:hover { transform: none; } * { scroll-behavior: auto !important; } }
+
+  /* ── Hero ── */
+  .hero { padding: 64px 0 40px; position: relative; overflow: hidden; }
+  .eyebrow { font-size: 12.5px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); }
+  .hero h1 { font-size: clamp(2.2rem, 6vw, 3.7rem); margin: 16px 0 0; max-width: 15ch; }
+  .hero p.lead { font-size: clamp(1.02rem, 2.2vw, 1.22rem); color: var(--muted); max-width: 56ch; margin: 20px 0 0; }
+  .cta-row { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+  .pills { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 34px; }
+  .glow {
+    position: absolute; width: 520px; height: 520px; border-radius: 50%; z-index: -1;
+    background: radial-gradient(circle, var(--ring), transparent 62%);
+    top: -160px; right: -120px; filter: blur(8px); opacity: .8;
+  }
+  .steps3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; margin-top: 46px; }
+  .steps3 .card { padding: 18px; }
+  .stepnum { font-size: 12px; font-weight: 800; color: var(--accent); letter-spacing: .08em; }
+  .steps3 h4 { margin: 8px 0 4px; font-size: 15px; }
+  .steps3 p { margin: 0; font-size: 13px; color: var(--muted); }
+
+  /* ── Assessment ── */
+  .assess-head { padding: 34px 0 8px; }
+  .progress-sticky {
+    position: sticky; top: 62px; z-index: 30; padding: 12px 0;
+    background: color-mix(in srgb, var(--bg) 85%, transparent); backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line);
+  }
+  .pbar { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; flex: 1; }
+  .pbar > div { height: 100%; background: var(--accent); border-radius: 999px; transition: width .3s ease; }
+  .prow { display: flex; align-items: center; gap: 14px; }
+  .qsec { margin-top: 20px; }
+  .q { padding: 16px 0; border-top: 1px solid var(--line); }
+  .q:first-child { border-top: none; }
+  .q .prompt { font-size: 14.5px; margin: 0 0 10px; font-weight: 500; }
+  .likert { display: grid; grid-template-columns: repeat(5,1fr); gap: 6px; }
+  .opt {
+    border: 1px solid var(--line); background: var(--surface); color: var(--muted);
+    border-radius: 10px; padding: 9px 6px; font-size: 11.5px; line-height: 1.25; text-align: center; transition: .12s;
+  }
+  .opt:hover { background: var(--surface-2); }
+  .opt.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); font-weight: 700; }
+  .choices { display: flex; flex-direction: column; gap: 8px; }
+  .choice {
+    text-align: left; border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+    border-radius: 11px; padding: 11px 14px; font-size: 14px; transition: .12s;
+  }
+  .choice:hover { background: var(--surface-2); }
+  .choice.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); font-weight: 600; }
+  .ctx { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .field label { font-size: 13px; color: var(--muted); display: block; margin-bottom: 5px; }
+  .field input {
+    width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; font: inherit; font-size: 14px;
+    background: var(--surface); color: var(--ink);
+  }
+  .checks { display: flex; flex-direction: column; gap: 9px; justify-content: center; }
+  .checks label { display: flex; gap: 9px; align-items: center; font-size: 14px; }
+  .assess-foot {
+    position: sticky; bottom: 0; z-index: 30; margin-top: 22px; padding: 14px 0;
+    background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(8px); border-top: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  }
+
+  /* ── Results ── */
+  .results-head { padding: 30px 0 6px; display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; }
+  .grid-main { display: grid; grid-template-columns: 1.55fr 1fr; gap: 18px; margin-top: 18px; }
+  .hpi-big { font-size: 46px; font-weight: 800; letter-spacing: -.03em; line-height: 1; }
+  .radar-wrap { display: flex; justify-content: center; padding: 6px 0 0; }
+  .legend-note { font-size: 12px; color: var(--faint); margin-top: 6px; text-align: center; }
+  .lever { display: flex; align-items: center; gap: 9px; font-size: 14px; padding: 5px 0; }
+  .lever .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  .matches-head { display: flex; align-items: baseline; justify-content: space-between; margin: 28px 0 12px; }
+  .match-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+  .match .top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+  .match .why { margin-top: 12px; background: transparent; border: none; color: var(--accent); font-size: 12.5px; font-weight: 700; padding: 0; }
+  .brk { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); display: none; }
+  .brk.open { display: block; }
+  .brkrow { display: flex; align-items: center; gap: 10px; margin-bottom: 7px; }
+  .brkrow .lb { width: 108px; flex: none; font-size: 11.5px; color: var(--muted); }
+  .track { height: 7px; background: var(--surface-2); border-radius: 999px; overflow: hidden; flex: 1; }
+  .track > div { height: 100%; background: var(--primary); border-radius: 999px; }
+  .brkrow .vl { width: 26px; text-align: right; font-size: 11.5px; }
+  .rlist { margin: 10px 0 0; padding: 0; list-style: none; }
+  .rlist li { display: flex; gap: 8px; font-size: 12.5px; color: var(--muted); padding: 2px 0; }
+  .rlist .tick { color: var(--accent); }
+
+  /* ── Roadmap ── */
+  .rm-head { padding: 28px 0 4px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; }
+  .phase { margin-top: 22px; }
+  .phase .plabel { font-size: 12.5px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }
+  .phase .pcap { font-size: 13px; color: var(--muted); margin-left: 8px; font-weight: 400; letter-spacing: 0; text-transform: none; }
+  .step {
+    display: flex; gap: 13px; align-items: flex-start; background: var(--surface); border: 1px solid var(--line);
+    border-radius: 13px; padding: 13px 15px; margin-top: 9px; transition: .15s;
+  }
+  .step.done { opacity: .62; }
+  .step .ico { font-size: 19px; line-height: 1.2; flex: none; }
+  .step .body { flex: 1; min-width: 0; }
+  .step .t { font-size: 14px; font-weight: 600; }
+  .step.done .t { text-decoration: line-through; }
+  .step .d { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+  .statusbtn { flex: none; }
+  .rm-progress { display: flex; align-items: center; gap: 12px; margin: 14px 0 4px; }
+
+  .footer { text-align: center; color: var(--faint); font-size: 12.5px; padding: 40px 0 60px; }
+  .footer a { color: var(--muted); }
+
+  @media (max-width: 860px) {
+    .grid-main { grid-template-columns: 1fr; }
+    .steps3 { grid-template-columns: 1fr; }
+    .ctx { grid-template-columns: 1fr; }
+  }
+</style>
+
+<header>
+  <div class="wrap bar">
+    <div class="brand">
+      <svg class="logo" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+        <circle cx="7" cy="9" r="3.2" fill="var(--accent)"/>
+        <circle cx="25" cy="7" r="2.6" fill="var(--primary)"/>
+        <circle cx="24" cy="24" r="3.2" fill="var(--accent)"/>
+        <circle cx="9" cy="24" r="2.4" fill="var(--primary)"/>
+        <path d="M7 9 L25 7 M25 7 L24 24 M24 24 L9 24 M9 24 L7 9 M7 9 L24 24" stroke="var(--accent)" stroke-width="1.3" opacity=".5"/>
+      </svg>
+      <div>OpportunityGraph<span style="color:var(--accent)"> AI</span>
+        <small>Potential, not pedigree</small>
+      </div>
+    </div>
+    <div class="htools">
+      <button class="ghost" id="restart" style="display:none">↺ Restart</button>
+      <button class="ghost" id="theme" title="Toggle theme">◐ Theme</button>
+    </div>
+  </div>
+</header>
+
+<main id="app"></main>
+
+<div class="footer wrap">
+  Browser demo of OpportunityGraph AI — the assessment scoring, career matching, and roadmap
+  generation run live on the real engine logic, entirely on your device. No data leaves this page.
+</div>
+
+<script>
+"use strict";
+/* ══════════════════════════════════════════════════════════════════════════
+   OpportunityGraph AI — engine (faithful client-side port of lib/opportunitygraph)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+const DIMENSION_KEYS = ["fluidReasoning","verbalReasoning","quantReasoning","conscientiousness","openness","adaptability","growthMindset","selfEfficacy","intrinsicMotivation"];
+const SHORT = {
+  fluidReasoning:"Problem-solving", verbalReasoning:"Verbal", quantReasoning:"Quant",
+  conscientiousness:"Reliability", openness:"Curiosity", adaptability:"Adaptability",
+  growthMindset:"Growth mindset", selfEfficacy:"Self-efficacy", intrinsicMotivation:"Motivation"
+};
+const RIASEC_KEYS = ["R","I","A","S","E","C"];
+
+const HPI_WEIGHTS = { fluidReasoning:.14, verbalReasoning:.08, quantReasoning:.08, conscientiousness:.16, openness:.10, adaptability:.12, growthMindset:.11, selfEfficacy:.11, intrinsicMotivation:.10 };
+const CRYSTALLIZED = ["verbalReasoning","quantReasoning"];
+const CONTEXT_BONUS_MAX = 5;
+
+const clamp = (v,lo=0,hi=100)=> Number.isNaN(v)?lo:Math.min(hi,Math.max(lo,v));
+const clamp01 = v => Number.isNaN(v)?0:Math.min(1,Math.max(0,v));
+const round1 = v => Math.round(v*10)/10;
+
+/* ── Instrument ─────────────────────────────────────────────────────────── */
+const ITEMS = [
+  { id:"fr-seq-1", kind:"task", dimension:"fluidReasoning", prompt:"What number continues the pattern?  2, 6, 12, 20, 30, ___", options:["36","40","42","44"], answerIndex:2 },
+  { id:"fr-sjt-1", kind:"sjt", dimension:"fluidReasoning", prompt:"You are given a task you have never done before, with no instructions. What do you do first?", options:[
+    {label:"Wait until someone explains exactly how to do it.", credit:.1},
+    {label:"Break it into smaller parts and test one part to see what happens.", credit:1.0},
+    {label:"Copy how a similar task was done, even if it may not fit.", credit:.5},
+    {label:"Skip it and move to something familiar.", credit:.2}] },
+  { id:"vr-analogy-1", kind:"task", dimension:"verbalReasoning", prompt:"Scarce is to plentiful as reckless is to ___", options:["dangerous","careful","quick","wealthy"], answerIndex:1 },
+  { id:"qr-word-1", kind:"task", dimension:"quantReasoning", prompt:"A program costs $240. A grant covers 35% of it. About how much do you still pay?", options:["$84","$120","$156","$205"], answerIndex:2 },
+  { id:"co-likert-1", kind:"likert", dimension:"conscientiousness", prompt:"I follow through on commitments, even when no one is checking." },
+  { id:"co-likert-2", kind:"likert", dimension:"conscientiousness", prompt:"I often leave things until the last minute.", reverse:true },
+  { id:"co-sjt-1", kind:"sjt", dimension:"conscientiousness", prompt:"You promised a deadline but realize you are running late. What do you do?", options:[
+    {label:"Say nothing and hope no one notices.", credit:0},
+    {label:"Tell them early, and propose a new realistic time.", credit:1.0},
+    {label:"Rush and hand in something unfinished on time.", credit:.4},
+    {label:"Wait until they ask before responding.", credit:.2}] },
+  { id:"op-likert-1", kind:"likert", dimension:"openness", prompt:"I enjoy learning about topics far outside my usual interests." },
+  { id:"op-likert-2", kind:"likert", dimension:"openness", prompt:"I prefer to stick to what I already know rather than try new approaches.", reverse:true },
+  { id:"ad-likert-1", kind:"likert", dimension:"adaptability", prompt:"When plans change suddenly, I adjust without getting stuck." },
+  { id:"ad-sjt-1", kind:"sjt", dimension:"adaptability", prompt:"You worked hard on a plan and it fails badly. A week later, you are most likely to:", options:[
+    {label:"Have given up on that goal.", credit:.1},
+    {label:"Be trying a changed version of the plan.", credit:1.0},
+    {label:"Be waiting for the right moment, unsure what to change.", credit:.4},
+    {label:"Be doing the same thing again, blaming circumstances.", credit:.2}] },
+  { id:"gm-likert-1", kind:"likert", dimension:"growthMindset", prompt:"How good I am at something can change a lot with effort and practice." },
+  { id:"gm-likert-2", kind:"likert", dimension:"growthMindset", prompt:"People are born with a fixed amount of talent that they cannot really change.", reverse:true },
+  { id:"se-likert-1", kind:"likert", dimension:"selfEfficacy", prompt:"If I work at it, I can usually solve problems that seem hard at first." },
+  { id:"se-likert-2", kind:"likert", dimension:"selfEfficacy", prompt:"What happens in my life is mostly outside of my control.", reverse:true },
+  { id:"im-likert-1", kind:"likert", dimension:"intrinsicMotivation", prompt:"I get absorbed in work that I find genuinely interesting." },
+  { id:"im-likert-2", kind:"likert", dimension:"intrinsicMotivation", prompt:"I only put in effort when there is a reward or a grade at stake.", reverse:true },
+  { id:"ri-R", kind:"interest", riasec:"R", prompt:"I like building, fixing, or working with my hands and tools." },
+  { id:"ri-I", kind:"interest", riasec:"I", prompt:"I like investigating problems, analyzing data, and figuring out why things work." },
+  { id:"ri-A", kind:"interest", riasec:"A", prompt:"I like creating, designing, writing, or expressing ideas." },
+  { id:"ri-S", kind:"interest", riasec:"S", prompt:"I like helping, teaching, or supporting other people." },
+  { id:"ri-E", kind:"interest", riasec:"E", prompt:"I like leading, persuading, starting things, and taking charge." },
+  { id:"ri-C", kind:"interest", riasec:"C", prompt:"I like organizing, keeping things accurate, and working with clear systems." },
+];
+
+/* ── Scoring ────────────────────────────────────────────────────────────── */
+function scoreItem(item, raw){
+  if(raw===undefined||raw===null||Number.isNaN(raw)) return null;
+  if(item.kind==="likert"){ const v=Math.min(5,Math.max(1,raw)); const n=((v-1)/4)*100; return item.reverse?100-n:n; }
+  if(item.kind==="sjt"){ const o=item.options[raw]; return o?o.credit*100:null; }
+  if(item.kind==="task"){ return raw===item.answerIndex?100:0; }
+  return null;
+}
+function dimensionConfidence(n, onlyBinary){
+  if(n<=0) return 0;
+  const base = 1 - Math.exp(-0.9*n);
+  const cap = (onlyBinary && n<2) ? 0.5 : 0.95;
+  return Math.min(cap, base);
+}
+function scorePotential(responses, constraints){
+  constraints = constraints || {};
+  const detail = DIMENSION_KEYS.map(key=>{
+    const items = ITEMS.filter(it=>it.kind!=="interest" && it.dimension===key);
+    const contrib=[]; let onlyBinary=true;
+    for(const it of items){ const s=scoreItem(it, responses[it.id]); if(s===null) continue; if(it.kind!=="task") onlyBinary=false; contrib.push(s); }
+    const answered=contrib.length;
+    const value = answered===0?50:contrib.reduce((a,b)=>a+b,0)/answered;
+    return { key, value:clamp(value), confidence:dimensionConfidence(answered,onlyBinary), itemsAnswered:answered };
+  });
+  let contextAdjusted=false;
+  if(constraints.firstGen){
+    for(const d of detail){ if(CRYSTALLIZED.includes(d.key)){ const bonus=Math.min(CONTEXT_BONUS_MAX,(100-d.value)*0.08); if(bonus>0){ d.value=clamp(d.value+bonus); contextAdjusted=true; } } }
+  }
+  const dimensions={}; detail.forEach(d=>dimensions[d.key]=round1(d.value));
+  const riasec={};
+  for(const key of RIASEC_KEYS){
+    const items=ITEMS.filter(it=>it.kind==="interest" && it.riasec===key);
+    const vals=items.map(it=>responses[it.id]).filter(v=>v!==undefined&&!Number.isNaN(v)).map(v=>((Math.min(5,Math.max(1,v))-1)/4)*100);
+    riasec[key]= vals.length?round1(vals.reduce((a,b)=>a+b,0)/vals.length):50;
+  }
+  let weighted=0, wsum=0;
+  for(const d of detail){ const w=HPI_WEIGHTS[d.key]*(0.4+0.6*d.confidence); weighted+=dimensions[d.key]*w; wsum+=w; }
+  const hpi=round1(wsum>0?weighted/wsum:50);
+  const confidence=round1((detail.reduce((a,d)=>a+d.confidence,0)/detail.length)*100)/100;
+  const strengths=[...detail].sort((a,b)=>b.value-a.value).slice(0,3).map(d=>d.key);
+  const growthLevers=[...detail].sort((a,b)=>a.value-b.value).slice(0,3).map(d=>d.key);
+  return { dimensions, riasec, hpi, confidence, strengths, growthLevers, contextAdjusted };
+}
+
+/* ── Knowledge graph seed (O*NET-style slice) ──────────────────────────── */
+const SKILLS = {
+  "data-analysis":"Data analysis","sql":"SQL & databases","spreadsheets":"Spreadsheets & modeling","python":"Python programming",
+  "coding-web":"Web development","design-basics":"Design fundamentals","research-methods":"Research methods","writing":"Writing & documentation",
+  "communication":"Communication","teamwork":"Teamwork","customer-service":"Customer service","project-mgmt":"Project management",
+  "problem-solving":"Applied problem-solving","math-fundamentals":"Math fundamentals","electrical":"Electrical systems","safety-osha":"Workplace safety (OSHA)"
+};
+const CAREERS = [
+  { slug:"data-analyst", title:"Data Analyst", cluster:"Information Technology", medianWageUsd:78000, growthOutlook:"high-growth", typicalEducation:"certificate", entryBarrier:.45,
+    riasec:{R:40,I:88,A:35,S:40,E:45,C:78}, demands:{quantReasoning:70,fluidReasoning:65,conscientiousness:60},
+    skills:[["data-analysis",.9],["sql",.8],["spreadsheets",.6],["python",.55],["communication",.5],["problem-solving",.7]] },
+  { slug:"web-developer", title:"Web Developer", cluster:"Information Technology", medianWageUsd:82000, growthOutlook:"high-growth", typicalEducation:"associate", entryBarrier:.4,
+    riasec:{R:55,I:78,A:55,S:35,E:45,C:55}, demands:{fluidReasoning:70,openness:60,conscientiousness:55},
+    skills:[["coding-web",.9],["problem-solving",.75],["design-basics",.5],["communication",.45]] },
+  { slug:"ux-designer", title:"UX Designer", cluster:"Arts & Communication", medianWageUsd:85000, growthOutlook:"growing", typicalEducation:"bachelor", entryBarrier:.5,
+    riasec:{R:30,I:65,A:85,S:55,E:45,C:40}, demands:{openness:72,adaptability:62,fluidReasoning:60},
+    skills:[["design-basics",.9],["research-methods",.6],["communication",.7],["writing",.5]] },
+  { slug:"industrial-tech", title:"Industrial / Electrical Technician", cluster:"Manufacturing", medianWageUsd:62000, growthOutlook:"growing", typicalEducation:"certificate", entryBarrier:.3,
+    riasec:{R:88,I:60,A:25,S:35,E:35,C:55}, demands:{fluidReasoning:60,conscientiousness:70,adaptability:55},
+    skills:[["electrical",.9],["safety-osha",.8],["problem-solving",.6],["math-fundamentals",.6],["teamwork",.5]] },
+  { slug:"project-coordinator", title:"Project Coordinator", cluster:"Business", medianWageUsd:65000, growthOutlook:"growing", typicalEducation:"associate", entryBarrier:.35,
+    riasec:{R:35,I:45,A:40,S:60,E:75,C:70}, demands:{conscientiousness:72,selfEfficacy:62,adaptability:60},
+    skills:[["project-mgmt",.9],["communication",.8],["spreadsheets",.6],["teamwork",.6]] },
+  { slug:"financial-analyst", title:"Financial Analyst", cluster:"Business", medianWageUsd:90000, growthOutlook:"growing", typicalEducation:"bachelor", entryBarrier:.6,
+    riasec:{R:30,I:70,A:25,S:35,E:65,C:82}, demands:{quantReasoning:75,conscientiousness:68,fluidReasoning:62},
+    skills:[["spreadsheets",.85],["data-analysis",.7],["math-fundamentals",.7],["communication",.6],["problem-solving",.7]] },
+  { slug:"health-support", title:"Health Support Specialist", cluster:"Health Science", medianWageUsd:58000, growthOutlook:"high-growth", typicalEducation:"certificate", entryBarrier:.35,
+    riasec:{R:45,I:55,A:30,S:85,E:40,C:55}, demands:{conscientiousness:75,adaptability:70,selfEfficacy:60},
+    skills:[["customer-service",.7],["communication",.8],["teamwork",.7],["safety-osha",.5],["problem-solving",.5]] },
+  { slug:"it-support", title:"IT Support / QA Specialist", cluster:"Information Technology", medianWageUsd:57000, growthOutlook:"growing", typicalEducation:"certificate", entryBarrier:.3,
+    riasec:{R:60,I:60,A:30,S:45,E:40,C:65}, demands:{conscientiousness:65,fluidReasoning:60},
+    skills:[["problem-solving",.75],["customer-service",.55],["communication",.55],["sql",.35],["coding-web",.35]] },
+  { slug:"skilled-trades", title:"Skilled Trades (Welding / Machining)", cluster:"Manufacturing", medianWageUsd:60000, growthOutlook:"growing", typicalEducation:"certificate", entryBarrier:.25,
+    riasec:{R:90,I:45,A:30,S:30,E:35,C:60}, demands:{fluidReasoning:55,conscientiousness:72},
+    skills:[["safety-osha",.8],["math-fundamentals",.55],["problem-solving",.55],["teamwork",.5],["electrical",.3]] },
+];
+const DAY=864e5, future=n=>Date.now()+n*DAY;
+const OPPS = [
+  { slug:"google-data-analytics", title:"Google Data Analytics Certificate", type:"COURSE", provider:"Coursera (financial aid)", costUsd:240, needBlind:true, remoteOk:true, locationState:null, weeklyHours:10, estWeeks:24, deadline:null, targetsUnderserved:false, builds:[["data-analysis",.7],["spreadsheets",.6],["sql",.5]] },
+  { slug:"sql-for-everybody", title:"SQL for Everybody", type:"COURSE", provider:"freeCodeCamp", costUsd:0, needBlind:true, remoteOk:true, locationState:null, weeklyHours:5, estWeeks:10, deadline:null, targetsUnderserved:false, builds:[["sql",.8],["data-analysis",.3]] },
+  { slug:"freecodecamp-web", title:"Responsive Web Design Certification", type:"COURSE", provider:"freeCodeCamp", costUsd:0, needBlind:true, remoteOk:true, locationState:null, weeklyHours:8, estWeeks:20, deadline:null, targetsUnderserved:false, builds:[["coding-web",.8],["design-basics",.3]] },
+  { slug:"year-up", title:"Year Up Career Program", type:"PROGRAM", provider:"Year Up", costUsd:0, needBlind:true, remoteOk:false, locationState:"TX", weeklyHours:40, estWeeks:52, deadline:null, targetsUnderserved:true, builds:[["communication",.6],["project-mgmt",.5],["customer-service",.5],["data-analysis",.3]] },
+  { slug:"aws-restart", title:"AWS re/Start Cloud Program", type:"PROGRAM", provider:"Amazon Web Services", costUsd:0, needBlind:true, remoteOk:true, locationState:null, weeklyHours:20, estWeeks:12, deadline:null, targetsUnderserved:true, builds:[["sql",.5],["problem-solving",.5],["coding-web",.4]] },
+  { slug:"electrical-apprenticeship", title:"Registered Electrical Apprenticeship", type:"APPRENTICESHIP", provider:"State Registered (IBEW)", costUsd:0, needBlind:true, remoteOk:false, locationState:"TX", weeklyHours:40, estWeeks:104, deadline:null, targetsUnderserved:true, builds:[["electrical",.9],["safety-osha",.8],["math-fundamentals",.5],["teamwork",.5]] },
+  { slug:"osha-10", title:"OSHA-10 Safety Certification", type:"COURSE", provider:"OSHA Outreach", costUsd:25, needBlind:false, remoteOk:true, locationState:null, weeklyHours:4, estWeeks:2, deadline:null, targetsUnderserved:false, builds:[["safety-osha",.9]] },
+  { slug:"machining-cert", title:"CNC Machining Certificate", type:"PROGRAM", provider:"Community College", costUsd:3000, needBlind:false, remoteOk:false, locationState:"TX", weeklyHours:15, estWeeks:32, deadline:null, targetsUnderserved:true, builds:[["safety-osha",.6],["math-fundamentals",.5],["problem-solving",.4]] },
+  { slug:"khan-math", title:"Khan Academy Math Foundations", type:"COURSE", provider:"Khan Academy", costUsd:0, needBlind:true, remoteOk:true, locationState:null, weeklyHours:5, estWeeks:12, deadline:null, targetsUnderserved:false, builds:[["math-fundamentals",.8]] },
+  { slug:"data-intern", title:"Data Analytics Internship", type:"INTERNSHIP", provider:"Regional employer partner", costUsd:0, needBlind:true, remoteOk:true, locationState:null, weeklyHours:20, estWeeks:12, deadline:future(45), targetsUnderserved:false, builds:[["data-analysis",.5],["sql",.4],["communication",.4]] },
+  { slug:"ux-bootcamp-scholarship", title:"UX Design Bootcamp (Full Scholarship)", type:"SCHOLARSHIP", provider:"Design Access Fund", costUsd:0, needBlind:true, remoteOk:true, locationState:null, weeklyHours:15, estWeeks:16, deadline:future(60), targetsUnderserved:true, builds:[["design-basics",.7],["research-methods",.5],["communication",.4]] },
+  { slug:"pm-essentials", title:"Project Management Essentials", type:"COURSE", provider:"Coursera (financial aid)", costUsd:200, needBlind:true, remoteOk:true, locationState:null, weeklyHours:6, estWeeks:8, deadline:null, targetsUnderserved:false, builds:[["project-mgmt",.7],["communication",.3]] },
+  { slug:"mentor-match", title:"Industry Mentor Match", type:"MENTORSHIP", provider:"iMentor", costUsd:0, needBlind:true, remoteOk:true, locationState:null, weeklyHours:2, estWeeks:24, deadline:null, targetsUnderserved:true, builds:[["communication",.4],["project-mgmt",.3]] },
+  { slug:"excel-modeling", title:"Financial Modeling in Excel", type:"COURSE", provider:"Online provider", costUsd:200, needBlind:false, remoteOk:true, locationState:null, weeklyHours:6, estWeeks:10, deadline:null, targetsUnderserved:false, builds:[["spreadsheets",.8],["data-analysis",.4],["math-fundamentals",.3]] },
+  { slug:"cna-training", title:"Certified Nursing Assistant (CNA) Training", type:"PROGRAM", provider:"Community College", costUsd:1200, needBlind:false, remoteOk:false, locationState:"TX", weeklyHours:20, estWeeks:8, deadline:null, targetsUnderserved:true, builds:[["customer-service",.5],["teamwork",.5],["communication",.5],["safety-osha",.4]] },
+];
+
+/* ── Matching ──────────────────────────────────────────────────────────── */
+const W = { interest:.25, aptitude:.20, readiness:.20, growth:.20, values:.15, barrier:.15 };
+const EDU_COST = { hs:0, certificate:4000, associate:12000, bachelor:40000, graduate:70000 };
+const EDU_YEARS = { hs:0, certificate:.75, associate:2, bachelor:4, graduate:6 };
+const WAGE_REF = 110000;
+const OUTLOOK = { declining:.6, stable:.85, growing:1.0, "high-growth":1.15 };
+
+function cosine(a,b){ let dot=0,na=0,nb=0; for(const k of RIASEC_KEYS){ dot+=a[k]*b[k]; na+=a[k]*a[k]; nb+=b[k]*b[k]; } return (na===0||nb===0)?0:dot/(Math.sqrt(na)*Math.sqrt(nb)); }
+function aptitudeFit(dims,demands){ const keys=Object.keys(demands); if(!keys.length) return .7; let t=0; for(const k of keys){ const tg=demands[k]||0; t+= tg<=0?1:clamp01(dims[k]/tg); } return t/keys.length; }
+function skillReadiness(held,required){ if(!required.length) return .5; const by=new Map(held.map(h=>[h.skillId,clamp01(h.proficiency)])); let n=0,d=0; for(const [sid,imp] of required){ d+=imp; n+=imp*(by.get(sid)||0); } return d>0?n/d:0; }
+function growthPotential(c){ const wage=c.medianWageUsd||45000; return clamp01(clamp01(wage/WAGE_REF)*(OUTLOOK[c.growthOutlook]||.85)); }
+function valuesFit(c,ct){ const cost=EDU_COST[c.typicalEducation]??20000; const yr=EDU_YEARS[c.typicalEducation]??2; let f=1;
+  if(ct.maxCostUsd!==undefined && cost>ct.maxCostUsd) f*=clamp01((ct.maxCostUsd+4000)/(cost+4000));
+  if(ct.weeklyHours!==undefined && yr>=4 && ct.weeklyHours<15) f*=.8;
+  if(yr<=1) f=Math.min(1,f+.1); return clamp01(f); }
+function accessBarrier(c,ct){ let b=clamp01(c.entryBarrier); const cost=EDU_COST[c.typicalEducation]??20000;
+  if(ct.needBlindOnly && cost>0) b=Math.min(1,b+.15); if(ct.maxCostUsd!==undefined && cost>ct.maxCostUsd) b=Math.min(1,b+.1); return b; }
+function rationaleFor(b){ const out=[]; const ord=[["interest","Strong fit with your interest profile"],["aptitude","Your measured strengths meet what this work demands"],["growth","High upward-mobility potential (pay and outlook)"],["readiness","You already hold several of the core skills"],["values","The path is reachable within your stated constraints"]];
+  for(const [k,m] of ord){ if(b[k]>=65) out.push(m); } if(b.barrierPenalty>=60) out.push("Note: entry barrier is high — the roadmap prioritizes funded, need-blind steps"); if(!out.length) out.push("A balanced match across interest, aptitude, and reachability"); return out.slice(0,3); }
+
+function matchCareers(input, careers){
+  const held=input.heldSkills||[], ct=input.constraints||{};
+  return careers.map(c=>{
+    const interest=clamp01(cosine(input.riasec,c.riasec));
+    const aptitude=clamp01(aptitudeFit(input.dimensions,c.demands));
+    const readiness=clamp01(skillReadiness(held,c.skills));
+    const growth=growthPotential(c);
+    const values=valuesFit(c,ct);
+    const barrier=accessBarrier(c,ct);
+    const raw=W.interest*interest+W.aptitude*aptitude+W.readiness*readiness+W.growth*growth+W.values*values-W.barrier*barrier;
+    const score=Math.round(clamp01((raw+W.barrier)/(1+W.barrier))*1000)/10;
+    const breakdown={ interest:Math.round(interest*100), aptitude:Math.round(aptitude*100), readiness:Math.round(readiness*100), growth:Math.round(growth*100), values:Math.round(values*100), barrierPenalty:Math.round(barrier*100) };
+    return { slug:c.slug, title:c.title, cluster:c.cluster, wage:c.medianWageUsd, edu:c.typicalEducation, score, breakdown, rationale:rationaleFor(breakdown) };
+  }).sort((a,b)=>b.score-a.score);
+}
+
+/* ── Graph: gaps, opportunity ranking, roadmap ─────────────────────────── */
+const GAP_T=.05;
+function skillGaps(career, held){
+  const by=new Map(held.map(h=>[h.skillId,clamp01(h.proficiency)]));
+  return career.skills.map(([sid,imp])=>{ const p=by.get(sid)||0; return { skillId:sid, name:SKILLS[sid]||sid, importance:imp, currentProficiency:p, gapValue:imp*(1-p) }; })
+    .filter(g=>g.gapValue>GAP_T).sort((a,b)=>b.gapValue-a.gapValue);
+}
+function accessibility(o,ct,now){
+  if(o.deadline && o.deadline<now) return 0;
+  const eff=o.needBlind?0:o.costUsd;
+  if(ct.needBlindOnly && eff>0) return 0;
+  let a=1;
+  if(ct.maxCostUsd!==undefined && eff>ct.maxCostUsd) a*=clamp01((ct.maxCostUsd+200)/(eff+200));
+  if(!o.remoteOk && ct.locationState && o.locationState && o.locationState!==ct.locationState) a*=.2;
+  if(ct.weeklyHours!==undefined && o.weeklyHours && o.weeklyHours>ct.weeklyHours) a*=clamp01(ct.weeklyHours/o.weeklyHours);
+  if(o.deadline){ const days=(o.deadline-now)/DAY; if(days<14) a*=.7; }
+  return clamp01(a);
+}
+function rankOpportunities(gaps, opps, ct){
+  const now=Date.now(); const gById=new Map(gaps.map(g=>[g.skillId,g]));
+  return opps.map(o=>{ let gcv=0; const closes=[]; for(const [sid,bw] of o.builds){ const g=gById.get(sid); if(!g) continue; gcv+=bw*g.gapValue; closes.push(sid); }
+    const acc=accessibility(o,ct,now); const quality=1+(o.targetsUnderserved?.1:0)+(o.needBlind?.05:0);
+    return { o, score:gcv*acc*quality, accessibility:acc, gapClosingValue:gcv, closes }; })
+    .filter(r=>r.accessibility>0 && r.gapClosingValue>0).sort((a,b)=>b.score-a.score);
+}
+const PHASE_FOR={ COURSE:"foundation", SCHOLARSHIP:"foundation", MENTORSHIP:"foundation", INTERNSHIP:"build", PROGRAM:"build", APPRENTICESHIP:"build" };
+const PHASE_ORD={ foundation:0, build:1, launch:2 };
+function generateRoadmap(career, gaps, ranked){
+  const maxOpps=4, covered=new Set(), chosen=[], pool=[...ranked];
+  while(chosen.length<maxOpps && pool.length){
+    let bi=-1, bm=0;
+    for(let i=0;i<pool.length;i++){ const r=pool[i]; let m=0; for(const sid of r.closes){ if(covered.has(sid)) continue; const g=gaps.find(x=>x.skillId===sid); if(g) m+=g.gapValue; } m*=r.accessibility; if(m>bm){ bm=m; bi=i; } }
+    if(bi===-1||bm<=0) break; const [p]=pool.splice(bi,1); chosen.push(p); p.closes.forEach(s=>covered.add(s));
+  }
+  const steps=[];
+  steps.push({ phase:"foundation", kind:"milestone", title:`Commit to the path: ${career.title}`, description:"Confirm this target, set a weekly time budget, and tell one person who can hold you accountable.", estWeeks:1 });
+  for(const r of chosen){ const o=r.o;
+    steps.push({ phase:PHASE_FOR[o.type], kind:"opportunity", title:o.title, description:`${o.provider} · ${o.needBlind?"Fully funded":o.costUsd===0?"Free":"$"+o.costUsd}${r.closes.length?` · builds ${r.closes.length} of your target skills`:""}.`, estWeeks:o.estWeeks });
+  }
+  const leftover=gaps.filter(g=>!covered.has(g.skillId)).slice(0,3);
+  for(const g of leftover){ steps.push({ phase:g.importance>=.7?"foundation":"build", kind:"skill", title:`Develop: ${g.name}`, description:"Self-directed practice with free resources, then apply it in a small real project you can show.", estWeeks:4 }); }
+  steps.push({ phase:"launch", kind:"milestone", title:`Apply into ${career.title}`, description:"Package your projects into a portfolio, line up references from people you met, and apply to entry roles or programs.", estWeeks:3 });
+  steps.sort((a,b)=>{ if(PHASE_ORD[a.phase]!==PHASE_ORD[b.phase]) return PHASE_ORD[a.phase]-PHASE_ORD[b.phase];
+    if(a.kind==="milestone"&&b.kind!=="milestone") return a.phase==="launch"?1:-1;
+    if(b.kind==="milestone"&&a.kind!=="milestone") return b.phase==="launch"?-1:1;
+    return (a.estWeeks||0)-(b.estWeeks||0); });
+  steps.forEach((s,i)=>{ s.order=i+1; s.status="NOT_STARTED"; });
+  const totalW=steps.reduce((a,s)=>a+(s.estWeeks||0),0);
+  return { horizonMonths:Math.max(3,Math.round(totalW/4.3)), steps };
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   UI
+   ══════════════════════════════════════════════════════════════════════════ */
+const app = document.getElementById("app");
+const state = { view:"hero", responses:{}, ctx:{firstGen:false,needBlindOnly:false}, held:[], result:null, matches:null, roadmaps:{} };
+const esc = s => String(s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+/* Theme */
+(function initTheme(){
+  const saved = null; // sessionless; default to system
+  document.getElementById("theme").addEventListener("click", ()=>{
+    const cur = document.documentElement.getAttribute("data-theme");
+    const sysDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const next = cur ? (cur==="dark"?"light":"dark") : (sysDark?"light":"dark");
+    document.documentElement.setAttribute("data-theme", next);
+  });
+})();
+document.getElementById("restart").addEventListener("click", ()=>{ state.responses={}; state.ctx={firstGen:false,needBlindOnly:false}; state.held=[]; state.result=null; state.matches=null; state.roadmaps={}; go("hero"); });
+
+function go(v){ state.view=v; render(); window.scrollTo({top:0,behavior:"instant"}); }
+function render(){
+  document.getElementById("restart").style.display = state.view==="hero" ? "none":"inline-flex";
+  if(state.view==="hero") app.innerHTML=viewHero();
+  else if(state.view==="assess") app.innerHTML=viewAssess();
+  else if(state.view==="results") app.innerHTML=viewResults();
+  else if(state.view==="roadmap") app.innerHTML=viewRoadmap();
+  bind();
+}
+
+/* ── Hero ── */
+function viewHero(){
+  return `<div class="view"><section class="hero"><div class="wrap">
+    <div class="glow"></div>
+    <div class="eyebrow">AI for social mobility</div>
+    <h1 class="display">Everyone has potential. Almost no one has the map.</h1>
+    <p class="lead">OpportunityGraph measures how you actually think, work, and stay motivated — then maps
+      that to careers you can reach and a funded, step-by-step roadmap to get there. Not your GPA. Not your résumé. You.</p>
+    <div class="cta-row">
+      <button class="btn" data-go="assess">Measure my potential →</button>
+      <button class="btn sec" id="sample">Try it with a sample profile</button>
+    </div>
+    <div class="pills">
+      <span class="chip na">Human Potential Index</span>
+      <span class="chip na">Explainable career matching</span>
+      <span class="chip na">Opportunity knowledge graph</span>
+      <span class="chip na">Affordability-aware roadmaps</span>
+    </div>
+    <div class="steps3">
+      <div class="card"><div class="stepnum">01 · MEASURE</div><h4>Nine dimensions of potential</h4><p>A short assessment scores cognitive, behavioral, and motivational traits — with an honest confidence band, never a single reductive number.</p></div>
+      <div class="card"><div class="stepnum">02 · MAP</div><h4>Careers you can actually reach</h4><p>A transparent algorithm ranks careers by interest, aptitude, mobility, and reachability — and shows you exactly why each one fits.</p></div>
+      <div class="card"><div class="stepnum">03 · MOVE</div><h4>A funded next step</h4><p>The knowledge graph finds the scholarships, programs, and apprenticeships that close your specific skill gaps — free and need-blind first.</p></div>
+    </div>
+  </div></section></div>`;
+}
+
+/* ── Assessment ── */
+function likertRow(it){
+  const labels=["Strongly disagree","Disagree","Neutral","Agree","Strongly agree"];
+  const v=state.responses[it.id];
+  return `<div class="q"><p class="prompt">${esc(it.prompt)}</p><div class="likert">${
+    labels.map((l,i)=>`<button class="opt ${v===i+1?"on":""}" data-item="${it.id}" data-val="${i+1}">${l}</button>`).join("")
+  }</div></div>`;
+}
+function choiceRow(it){
+  const v=state.responses[it.id];
+  const opts = it.kind==="sjt" ? it.options.map(o=>o.label) : it.options;
+  return `<div class="q"><p class="prompt">${esc(it.prompt)}</p><div class="choices">${
+    opts.map((l,i)=>`<button class="choice ${v===i?"on":""}" data-item="${it.id}" data-val="${i}">${esc(l)}</button>`).join("")
+  }</div></div>`;
+}
+function viewAssess(){
+  const scale=ITEMS.filter(i=>i.kind==="likert"), interest=ITEMS.filter(i=>i.kind==="interest"), choice=ITEMS.filter(i=>i.kind==="sjt"||i.kind==="task");
+  const answered=Object.keys(state.responses).length, total=ITEMS.length, pct=Math.round(answered/total*100);
+  const c=state.ctx;
+  return `<div class="view"><div class="wrap">
+    <div class="assess-head"><h1 class="display" style="font-size:1.8rem">Human Potential Assessment</h1>
+      <p class="sub" style="font-size:14px;max-width:60ch">There are no right or wrong answers. We measure how you think, work, and stay motivated — sensitive information is never used to score you. <b>Short on time?</b> <button class="why" id="sample2" style="font-size:13px">Load a sample profile.</button></p></div>
+    <div class="progress-sticky"><div class="prow"><div class="pbar"><div style="width:${pct}%"></div></div><span class="mono" style="font-size:12px;color:var(--muted)">${answered}/${total}</span></div></div>
+    <div class="card qsec"><h3>About how you work</h3><p class="sub">Rate how much each statement sounds like you.</p><div style="margin-top:6px">${scale.map(likertRow).join("")}</div></div>
+    <div class="card qsec"><h3>What you enjoy</h3><p class="sub">Rate how much you'd like each kind of work.</p><div style="margin-top:6px">${interest.map(likertRow).join("")}</div></div>
+    <div class="card qsec"><h3>How you'd handle it</h3><p class="sub">Pick the answer closest to what you'd really do.</p><div style="margin-top:6px">${choice.map(choiceRow).join("")}</div></div>
+    <div class="card qsec"><h3>Your situation <span style="font-weight:500;color:var(--muted);font-size:13px">(optional)</span></h3>
+      <p class="sub">Used only to find opportunities you can actually access — never to lower your scores.</p>
+      <div class="ctx" style="margin-top:12px">
+        <div class="field"><label>Most I can pay out of pocket ($)</label><input type="number" id="cx-cost" value="${c.maxCostUsd??""}" placeholder="0"></div>
+        <div class="field"><label>Hours per week available</label><input type="number" id="cx-hours" value="${c.weeklyHours??""}" placeholder="10"></div>
+        <div class="field"><label>State (2-letter)</label><input type="text" id="cx-state" maxlength="2" value="${c.locationState??""}" placeholder="TX" style="text-transform:uppercase"></div>
+        <div class="checks">
+          <label><input type="checkbox" id="cx-firstgen" ${c.firstGen?"checked":""}> First-generation student</label>
+          <label><input type="checkbox" id="cx-needblind" ${c.needBlindOnly?"checked":""}> Only show fully-funded options</label>
+        </div>
+      </div>
+    </div>
+    <div class="assess-foot"><span class="sub" style="margin:0">${answered} of ${total} answered</span>
+      <button class="btn" id="submit" ${answered<5?"disabled":""}>See my potential profile →</button></div>
+    <div style="height:20px"></div>
+  </div></div>`;
+}
+
+/* ── Radar (inline SVG) ── */
+function radarSVG(dims){
+  const size=300, cx=size/2, cy=size/2, R=110, n=DIMENSION_KEYS.length;
+  const ang=i=>(-Math.PI/2)+(i*2*Math.PI/n);
+  const pt=(i,r)=>[cx+r*Math.cos(ang(i)), cy+r*Math.sin(ang(i))];
+  let rings="";
+  [.25,.5,.75,1].forEach(f=>{ const p=DIMENSION_KEYS.map((_,i)=>pt(i,R*f).map(x=>x.toFixed(1)).join(",")).join(" "); rings+=`<polygon points="${p}" fill="none" stroke="var(--line)" stroke-width="1"/>`; });
+  let spokes="", labels="";
+  DIMENSION_KEYS.forEach((k,i)=>{ const [x,y]=pt(i,R); spokes+=`<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--line)" stroke-width="1"/>`;
+    const [lx,ly]=pt(i,R+22); const anchor=Math.abs(lx-cx)<6?"middle":(lx>cx?"start":"end");
+    labels+=`<text x="${lx.toFixed(1)}" y="${(ly+3).toFixed(1)}" font-size="10" fill="var(--muted)" text-anchor="${anchor}">${SHORT[k]}</text>`; });
+  const poly=DIMENSION_KEYS.map((k,i)=>pt(i,R*(dims[k]/100)).map(x=>x.toFixed(1)).join(",")).join(" ");
+  const dots=DIMENSION_KEYS.map((k,i)=>{ const [x,y]=pt(i,R*(dims[k]/100)); return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="var(--radar)"/>`; }).join("");
+  return `<svg viewBox="0 0 ${size} ${size}" width="100%" style="max-width:340px" role="img" aria-label="Potential radar chart">${rings}${spokes}
+    <polygon points="${poly}" fill="var(--radar)" fill-opacity="0.22" stroke="var(--radar)" stroke-width="2"/>${dots}${labels}</svg>`;
+}
+
+/* ── Results ── */
+function viewResults(){
+  const r=state.result, m=state.matches, confPct=Math.round(r.confidence*100);
+  const strengthRow = k=>`<div class="lever"><span class="dot" style="background:var(--accent)"></span>${SHORT[k]}</div>`;
+  const leverRow = k=>`<div class="lever"><span class="dot" style="background:var(--amber)"></span>${SHORT[k]}</div>`;
+  return `<div class="view"><div class="wrap">
+    <div class="results-head"><div><div class="eyebrow">Your profile</div><h1 class="display" style="font-size:1.9rem;margin-top:8px">Human Potential Index</h1></div>
+      <button class="btn sec sm" data-go="assess">← Adjust answers</button></div>
+    <div class="grid-main">
+      <div class="card">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+          <div><div class="hpi-big mono" style="color:var(--accent)">${r.hpi}</div>
+            <p class="sub" style="margin-top:4px">Composite of nine developable dimensions</p></div>
+          <span class="chip ${confPct>=60?"em":"am"}">Confidence ${confPct}%</span>
+        </div>
+        <div class="radar-wrap">${radarSVG(r.dimensions)}</div>
+        ${confPct<60?`<p class="legend-note" style="color:var(--amber)">Confidence is modest — answering more of the assessment sharpens your profile.</p>`:`<p class="legend-note">Each dimension is scored 0–100 with its own confidence band.</p>`}
+        ${r.contextAdjusted?`<p class="legend-note">Context-adjusted: crystallized scores were opportunity-adjusted for declared first-gen access.</p>`:``}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="card"><h3>Your strengths</h3><div style="margin-top:8px">${r.strengths.map(strengthRow).join("")}</div></div>
+        <div class="card"><h3>High-leverage to develop</h3><div style="margin-top:8px">${r.growthLevers.map(leverRow).join("")}</div>
+          <p class="sub" style="margin-top:10px">Not weaknesses — where growth moves your index the most.</p></div>
+      </div>
+    </div>
+    <div class="matches-head"><h2 class="display" style="font-size:1.35rem">Career matches</h2><span class="sub">Ranked by fit, mobility &amp; reachability</span></div>
+    <div class="match-grid">${m.map(matchCard).join("")}</div>
+    <div style="height:24px"></div>
+  </div></div>`;
+}
+function toneClass(s){ return s>=70?"em":s>=50?"na":"am"; }
+function matchCard(mt){
+  const b=mt.breakdown;
+  const bars=[["interest","Interest fit"],["aptitude","Aptitude fit"],["readiness","Skill readiness"],["growth","Mobility potential"],["values","Reachability"]];
+  return `<div class="card match" data-card="${mt.slug}">
+    <div class="top"><div><h3>${esc(mt.title)}</h3><p class="sub">${esc(mt.cluster)} · $${(mt.wage/1000).toFixed(0)}k median</p></div>
+      <span class="chip ${toneClass(mt.score)}">${mt.score}% match</span></div>
+    <p class="sub" style="margin-top:8px;color:var(--ink)">${esc(mt.rationale[0])}</p>
+    <button class="why" data-toggle="${mt.slug}">Why this match?</button>
+    <div class="brk" id="brk-${mt.slug}">
+      ${bars.map(([k,l])=>`<div class="brkrow"><span class="lb">${l}</span><div class="track"><div style="width:${b[k]}%"></div></div><span class="vl mono">${b[k]}</span></div>`).join("")}
+      ${b.barrierPenalty>=60?`<p class="sub" style="color:var(--amber);margin-top:2px">High entry barrier — the roadmap prioritizes funded, need-blind steps.</p>`:``}
+      <ul class="rlist">${mt.rationale.map(x=>`<li><span class="tick">✓</span>${esc(x)}</li>`).join("")}</ul>
+    </div>
+    <div style="margin-top:14px"><button class="btn sm" data-build="${mt.slug}">Build my roadmap →</button></div>
+  </div>`;
+}
+
+/* ── Roadmap ── */
+function buildRoadmap(slug){
+  const career=CAREERS.find(c=>c.slug===slug);
+  const gaps=skillGaps(career, state.held);
+  const ranked=rankOpportunities(gaps, OPPS, state.ctx);
+  const rm=generateRoadmap(career, gaps, ranked);
+  const matchScore=(state.matches.find(m=>m.slug===slug)||{}).score||0;
+  state.roadmaps[slug]={ career, gaps, rm, matchScore };
+  state.currentRoadmap=slug;
+}
+const PHASES=[["foundation","Foundation","Build the base skills and lock in your target"],["build","Build","Real experience through funded programs & internships"],["launch","Launch","Package your work and apply in"]];
+const KIND_ICO={ skill:"📚", opportunity:"🎯", milestone:"🚩" };
+const ST_LABEL={ NOT_STARTED:"Not started", IN_PROGRESS:"In progress", DONE:"Done" };
+const ST_TONE={ NOT_STARTED:"gy", IN_PROGRESS:"na", DONE:"em" };
+const ST_NEXT={ NOT_STARTED:"IN_PROGRESS", IN_PROGRESS:"DONE", DONE:"NOT_STARTED" };
+function viewRoadmap(){
+  const R=state.roadmaps[state.currentRoadmap]; const rm=R.rm;
+  const done=rm.steps.filter(s=>s.status==="DONE").length, pct=Math.round(done/rm.steps.length*100);
+  let phaseHtml="";
+  for(const [key,label,cap] of PHASES){ const ps=rm.steps.filter(s=>s.phase===key); if(!ps.length) continue;
+    phaseHtml+=`<div class="phase"><div class="plabel">${label}<span class="pcap">${cap}</span></div>${
+      ps.map(s=>`<div class="step ${s.status==="DONE"?"done":""}"><span class="ico">${KIND_ICO[s.kind]}</span>
+        <div class="body"><div class="t">${esc(s.title)} ${s.estWeeks?`<span class="sub" style="font-weight:400">· ~${s.estWeeks}w</span>`:""}</div><div class="d">${esc(s.description)}</div></div>
+        <button class="chip ${ST_TONE[s.status]} statusbtn" data-step="${s.order}">${ST_LABEL[s.status]}</button></div>`).join("")
+    }</div>`;
+  }
+  return `<div class="view"><div class="wrap">
+    <div class="rm-head"><div><div class="eyebrow">Your roadmap</div><h1 class="display" style="font-size:1.7rem;margin-top:8px">Your path to ${esc(R.career.title)}</h1>
+      <p class="sub">${R.gaps.length} skill gaps identified · ${rm.steps.length} steps · ~${rm.horizonMonths} months</p></div>
+      <div style="display:flex;gap:8px;align-items:center"><span class="chip em">${Math.round(R.matchScore)}% match</span><button class="btn sec sm" data-go="results">← All matches</button></div></div>
+    <div class="rm-progress"><div class="pbar"><div style="width:${pct}%;background:var(--accent)"></div></div>
+      <span class="mono" style="font-size:12px;color:var(--muted)">${done}/${rm.steps.length} done</span></div>
+    <p class="sub" style="max-width:60ch">Every step is a concrete, affordable action — funded and need-blind options are ranked first. Click a status chip to track your progress.</p>
+    ${phaseHtml}
+    <div style="height:28px"></div>
+  </div></div>`;
+}
+
+/* ── Sample profile (analytical / investigative respondent) ── */
+function loadSample(){
+  const resp={};
+  for(const it of ITEMS){
+    if(it.kind==="likert") resp[it.id]=it.reverse?2:4;
+    else if(it.kind==="interest") resp[it.id]=(it.riasec==="I"||it.riasec==="C")?5:2;
+    else if(it.kind==="task") resp[it.id]=it.answerIndex;
+    else if(it.kind==="sjt"){ let bi=0; it.options.forEach((o,i)=>{ if(o.credit>it.options[bi].credit) bi=i; }); resp[it.id]=bi; }
+  }
+  state.responses=resp;
+  state.ctx={ firstGen:true, needBlindOnly:false, maxCostUsd:1000, weeklyHours:12, locationState:"TX" };
+  state.held=[{skillId:"spreadsheets",proficiency:.6},{skillId:"communication",proficiency:.5},{skillId:"math-fundamentals",proficiency:.5}];
+  computeResults(); go("results");
+}
+function computeResults(){
+  state.result=scorePotential(state.responses, state.ctx);
+  state.matches=matchCareers({ dimensions:state.result.dimensions, riasec:state.result.riasec, heldSkills:state.held, constraints:state.ctx }, CAREERS);
+}
+
+/* ── Event binding (delegated per render) ── */
+function bind(){
+  app.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go));
+  const s1=document.getElementById("sample"); if(s1) s1.onclick=loadSample;
+  const s2=document.getElementById("sample2"); if(s2) s2.onclick=loadSample;
+
+  app.querySelectorAll(".opt,.choice").forEach(b=>b.onclick=()=>{ state.responses[b.dataset.item]=Number(b.dataset.val); render(); });
+
+  const cost=document.getElementById("cx-cost"); if(cost) cost.oninput=e=>{ const v=e.target.value; state.ctx.maxCostUsd=v===""?undefined:Number(v); };
+  const hrs=document.getElementById("cx-hours"); if(hrs) hrs.oninput=e=>{ const v=e.target.value; state.ctx.weeklyHours=v===""?undefined:Number(v); };
+  const stt=document.getElementById("cx-state"); if(stt) stt.oninput=e=>{ state.ctx.locationState=e.target.value.toUpperCase()||undefined; };
+  const fg=document.getElementById("cx-firstgen"); if(fg) fg.onchange=e=>{ state.ctx.firstGen=e.target.checked; };
+  const nb=document.getElementById("cx-needblind"); if(nb) nb.onchange=e=>{ state.ctx.needBlindOnly=e.target.checked; };
+
+  const sub=document.getElementById("submit"); if(sub) sub.onclick=()=>{ computeResults(); go("results"); };
+
+  app.querySelectorAll("[data-toggle]").forEach(b=>b.onclick=()=>{ document.getElementById("brk-"+b.dataset.toggle).classList.toggle("open"); b.textContent = document.getElementById("brk-"+b.dataset.toggle).classList.contains("open")?"Hide breakdown":"Why this match?"; });
+  app.querySelectorAll("[data-build]").forEach(b=>b.onclick=()=>{ buildRoadmap(b.dataset.build); go("roadmap"); });
+
+  app.querySelectorAll("[data-step]").forEach(b=>b.onclick=()=>{ const R=state.roadmaps[state.currentRoadmap]; const st=R.rm.steps.find(s=>s.order===Number(b.dataset.step)); st.status=ST_NEXT[st.status]; render(); });
+}
+
+render();
+</script>
