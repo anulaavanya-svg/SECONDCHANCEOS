@@ -82,6 +82,13 @@ export interface Conversation {
   messageCount?: number
 }
 
+/** A conversation returned from full-text search, with a matching snippet. */
+export interface ConversationSearchResult extends Conversation {
+  snippet: string
+  /** True when the match was in the title rather than a message. */
+  titleMatch: boolean
+}
+
 export interface ChatSendRequest {
   conversationId: string
   content: string

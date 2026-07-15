@@ -36,7 +36,8 @@ const api: NilaApi = {
     create: (title) => ipcRenderer.invoke(IpcChannels.ConversationCreate, title),
     rename: (id, title) => ipcRenderer.invoke(IpcChannels.ConversationRename, id, title),
     delete: (id) => ipcRenderer.invoke(IpcChannels.ConversationDelete, id),
-    export: (id) => ipcRenderer.invoke(IpcChannels.ConversationExport, id)
+    export: (id) => ipcRenderer.invoke(IpcChannels.ConversationExport, id),
+    search: (query) => ipcRenderer.invoke(IpcChannels.ConversationSearch, query)
   },
 
   memory: {

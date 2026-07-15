@@ -18,6 +18,7 @@ export const IpcChannels = {
   ConversationRename: 'conversation:rename',
   ConversationDelete: 'conversation:delete',
   ConversationExport: 'conversation:export',
+  ConversationSearch: 'conversation:search',
 
   // Memory
   MemoryList: 'memory:list',

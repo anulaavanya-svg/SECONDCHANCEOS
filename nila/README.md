@@ -25,6 +25,8 @@ independent of the SecondChanceOS web platform; nothing here touches that app.
 | **Screenshot analysis** | Capture your screen (or attach an image) and ask Nila about it. |
 | **File management** | Sandboxed read/write/list, plus native open/save dialogs. |
 | **Desktop automation** | Nila *proposes* actions (shell, open, file ops); you approve before anything runs. |
+| **Conversation search** | Full-text search across titles and message content, with snippets, from the sidebar. |
+| **Command palette** | `Cmd/Ctrl+K` fuzzy search over actions and conversations. |
 
 ## Architecture
 
@@ -127,6 +129,8 @@ security-critical logic that doesn't require the Electron runtime:
 - **Memory formatting** — the long-term-memory prompt block groups entries by
   kind and stays empty when there's nothing to inject.
 - **Markdown export** — role headings, tool footnotes, and safe filenames.
+- **Search** — snippet generation and SQL-`LIKE` pattern escaping.
+- **Fuzzy matching** — command-palette subsequence scoring and ranking.
 - **Formatting utilities** — relative time, byte sizes, and history buckets.
 
 ## License

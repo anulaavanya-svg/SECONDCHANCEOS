@@ -13,6 +13,7 @@ import type {
   ChatStreamDone,
   ChatStreamError,
   Conversation,
+  ConversationSearchResult,
   ChatMessage,
   CaptureSource,
   MenuAction,
@@ -49,6 +50,8 @@ export interface NilaApi {
     delete(id: string): Promise<void>
     /** Export a conversation to a Markdown file. Returns the saved path, or null if cancelled. */
     export(id: string): Promise<string | null>
+    /** Full-text search across conversation titles and message content. */
+    search(query: string): Promise<ConversationSearchResult[]>
   }
 
   memory: {

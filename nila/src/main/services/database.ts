@@ -15,6 +15,7 @@ import type {
   AutomationTask,
   ChatMessage,
   Conversation,
+  ConversationSearchResult,
   ImageAttachment,
   MemoryEntry,
   MemoryKind,
@@ -23,6 +24,7 @@ import type {
   Role
 } from '@shared/types'
 import { createLogger } from './logger'
+import { likePattern, makeSnippet } from './search'
 
 const log = createLogger('database')
 
@@ -153,6 +155,50 @@ export class Database {
 
   deleteConversation(id: string): void {
     this.db.prepare(`DELETE FROM conversations WHERE id = ?`).run(id)
+  }
+
+  /**
+   * Full-text-ish search across conversation titles and message content.
+   * Returns each matching conversation once, with a snippet drawn from the
+   * title (when it matches) or the first matching message.
+   */
+  searchConversations(query: string, limit = 30): ConversationSearchResult[] {
+    const trimmed = query.trim()
+    if (!trimmed) return []
+    const like = likePattern(trimmed)
+
+    const rows = this.db
+      .prepare(
+        `SELECT c.id, c.title, c.model,
+                c.created_at AS createdAt, c.updated_at AS updatedAt,
+                (c.title LIKE @like) AS titleMatch,
+                (SELECT m.content FROM messages m
+                   WHERE m.conversation_id = c.id AND m.content LIKE @like
+                   ORDER BY m.created_at LIMIT 1) AS matchContent
+         FROM conversations c
+         WHERE c.title LIKE @like
+            OR EXISTS (SELECT 1 FROM messages m
+                        WHERE m.conversation_id = c.id AND m.content LIKE @like)
+         ORDER BY c.updated_at DESC
+         LIMIT @limit`
+      )
+      .all({ like, limit }) as Array<
+      Conversation & { titleMatch: number; matchContent: string | null }
+    >
+
+    return rows.map((r) => {
+      const titleMatch = Boolean(r.titleMatch)
+      const source = titleMatch || !r.matchContent ? r.title : r.matchContent
+      return {
+        id: r.id,
+        title: r.title,
+        model: r.model,
+        createdAt: r.createdAt,
+        updatedAt: r.updatedAt,
+        titleMatch,
+        snippet: makeSnippet(source, trimmed)
+      }
+    })
   }
 
   /* ---------------------------------------------------------------- */

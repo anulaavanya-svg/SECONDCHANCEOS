@@ -127,6 +127,10 @@ function registerConversations(services: Services): void {
     await services.files.write(result.filePath, markdown, true)
     return result.filePath
   })
+
+  ipcMain.handle(IpcChannels.ConversationSearch, (_e, query: string) =>
+    services.db.searchConversations(query)
+  )
 }
 
 /* ------------------------------------------------------------------ */
