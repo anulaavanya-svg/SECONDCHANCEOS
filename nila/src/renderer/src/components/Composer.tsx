@@ -30,10 +30,6 @@ const ScreenSourcePicker = lazy(() =>
   import('./ScreenSourcePicker').then((m) => ({ default: m.ScreenSourcePicker }))
 )
 
-export interface ComposerHandle {
-  setText(text: string): void
-}
-
 interface Props {
   seededPrompt?: string
   onConsumeSeed?: () => void
