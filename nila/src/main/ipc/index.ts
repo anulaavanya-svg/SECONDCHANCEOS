@@ -109,7 +109,10 @@ function registerChat(services: Services, getWindow: () => BrowserWindow | null)
   })
 
   ipcMain.handle(IpcChannels.ChatCancel, (_e, conversationId: string) => {
-    services.chat.cancel(requireString(conversationId, 'conversationId', 128))
+    const id = requireString(conversationId, 'conversationId', 128)
+    services.chat.cancel(id)
+    // Settle any pending approval so the interrupted turn doesn't hang.
+    services.automation.cancelPending(id)
   })
 }
 
@@ -157,25 +160,31 @@ function registerConversations(services: Services): void {
   ipcMain.handle(IpcChannels.ConversationList, () => services.db.listConversations())
 
   ipcMain.handle(IpcChannels.ConversationGet, (_e, id: string) => {
-    const conversation = services.db.getConversation(id)
+    const conversation = services.db.getConversation(requireString(id, 'id', 128))
     if (!conversation) throw new Error('Conversation not found.')
-    return { conversation, messages: services.db.getMessages(id) }
+    return { conversation, messages: services.db.getMessages(conversation.id) }
   })
 
   ipcMain.handle(IpcChannels.ConversationCreate, (_e, title?: string) =>
-    services.db.createConversation(title?.trim() || 'New chat', services.config.getModel() ?? DEFAULT_MODEL)
+    services.db.createConversation(
+      optionalString(title, 'title', 200).trim() || 'New chat',
+      services.config.getModel() ?? DEFAULT_MODEL
+    )
   )
 
   ipcMain.handle(IpcChannels.ConversationRename, (_e, id: string, title: string) => {
-    services.db.renameConversation(id, title)
+    services.db.renameConversation(
+      requireString(id, 'id', 128),
+      requireString(title, 'title', 200).trim() || 'Untitled'
+    )
   })
 
   ipcMain.handle(IpcChannels.ConversationDelete, (_e, id: string) => {
-    services.db.deleteConversation(id)
+    services.db.deleteConversation(requireString(id, 'id', 128))
   })
 
   ipcMain.handle(IpcChannels.ConversationExport, async (_e, id: string) => {
-    const conversation = services.db.getConversation(id)
+    const conversation = services.db.getConversation(requireString(id, 'id', 128))
     if (!conversation) throw new Error('Conversation not found.')
     const messages = services.db.getMessages(id)
     const markdown = conversationToMarkdown(conversation.title, messages)
@@ -288,13 +297,13 @@ function registerResearch(services: Services): void {
 
 function registerAutomation(services: Services): void {
   ipcMain.handle(IpcChannels.AutomationList, (_e, conversationId?: string) =>
-    services.automation.list(conversationId)
+    services.automation.list(conversationId ? requireString(conversationId, 'conversationId', 128) : undefined)
   )
   ipcMain.handle(IpcChannels.AutomationApprove, (_e, taskId: string) =>
-    services.automation.approve(taskId)
+    services.automation.approve(requireString(taskId, 'taskId', 128))
   )
   ipcMain.handle(IpcChannels.AutomationReject, (_e, taskId: string) =>
-    services.automation.reject(taskId)
+    services.automation.reject(requireString(taskId, 'taskId', 128))
   )
 }
 

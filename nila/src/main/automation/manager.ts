@@ -64,20 +64,33 @@ export class AutomationManager {
     return result
   }
 
-  reject(taskId: string): AutomationTask {
+  reject(taskId: string, reason = 'Rejected by user.'): AutomationTask {
     const task = this.db.getAutomationTask(taskId)
     if (!task || task.status !== 'proposed') {
       return task ?? this.notFound(taskId)
     }
     this.db.updateAutomationTask(taskId, {
       status: 'rejected',
-      error: 'Rejected by user.',
+      error: reason,
       resolvedAt: new Date().toISOString()
     })
     const updated = this.db.getAutomationTask(taskId)!
     this.settle(taskId, updated)
     this.emit()
     return updated
+  }
+
+  /**
+   * Reject any still-pending proposals for a conversation. Called when the user
+   * stops the response, so a parked `propose()` promise (and therefore the chat
+   * turn) doesn't hang waiting on an approval that will never come.
+   */
+  cancelPending(conversationId: string): void {
+    for (const task of this.db.listAutomationTasks(conversationId)) {
+      if (task.status === 'proposed') {
+        this.reject(task.id, 'Cancelled because the response was stopped.')
+      }
+    }
   }
 
   list(conversationId?: string): AutomationTask[] {
