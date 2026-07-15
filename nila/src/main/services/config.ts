@@ -141,6 +141,10 @@ export class Config {
       this.settings.apiKeyEnc = safeStorage.encryptString(trimmed).toString('base64')
       this.settings.apiKeyIsEncrypted = true
     } else {
+      log.warn(
+        'OS secure storage is unavailable; the API key will be stored unencrypted. ' +
+          'On Linux this usually means no keyring (gnome-keyring/kwallet) is running.'
+      )
       this.settings.apiKeyEnc = trimmed
       this.settings.apiKeyIsEncrypted = false
     }

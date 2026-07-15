@@ -33,11 +33,19 @@ const SUGGESTIONS: Suggestion[] = [
   }
 ]
 
+function greeting(): string {
+  const hour = new Date().getHours()
+  if (hour < 5) return 'Working late?'
+  if (hour < 12) return 'Good morning'
+  if (hour < 18) return 'Good afternoon'
+  return 'Good evening'
+}
+
 export function Welcome({ onPick }: { onPick: (prompt: string) => void }): JSX.Element {
   return (
     <div className="welcome">
       <div className="welcome__logo">N</div>
-      <div className="welcome__title">Hello, I&apos;m Nila</div>
+      <div className="welcome__title">{greeting()} — I&apos;m Nila</div>
       <div className="welcome__subtitle">
         Your desktop assistant with memory, voice, research, screenshots, and — with your
         approval — a little help around your machine. What can I do for you?

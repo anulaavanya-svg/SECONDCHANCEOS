@@ -16,10 +16,27 @@ import type {
   ScreenshotAnalyzeRequest,
   SettingsUpdate
 } from '@shared/types'
-import { DEFAULT_MODEL } from '@shared/types'
+import {
+  DEFAULT_MODEL,
+  MODELS,
+  type ImageAttachment,
+  type MemoryKind,
+  type MemoryUpsertRequest
+} from '@shared/types'
 import type { Services } from '../container'
 import { conversationToMarkdown, safeExportName } from '../services/export'
+import {
+  assertNoNullBytes,
+  clampNumber,
+  oneOf,
+  optionalString,
+  requireString
+} from '../services/validation'
 import { createLogger } from '../services/logger'
+
+const MEMORY_KINDS: MemoryKind[] = ['fact', 'preference', 'project', 'person', 'note']
+const THEMES = ['dark', 'light', 'system'] as const
+const MODEL_IDS = MODELS.map((m) => m.id)
 
 const log = createLogger('ipc')
 
@@ -81,16 +98,54 @@ function registerChat(services: Services, getWindow: () => BrowserWindow | null)
     return { messageId: assistantMessageId }
   }
 
-  ipcMain.handle(IpcChannels.ChatSend, (_e, req: ChatSendRequest) =>
-    startStream(req.conversationId, (cb, id) => services.chat.stream(req, cb, id))
-  )
+  ipcMain.handle(IpcChannels.ChatSend, (_e, req: ChatSendRequest) => {
+    const clean = validateChatSend(req)
+    return startStream(clean.conversationId, (cb, id) => services.chat.stream(clean, cb, id))
+  })
 
-  ipcMain.handle(IpcChannels.ChatRegenerate, (_e, conversationId: string) =>
-    startStream(conversationId, (cb, id) => services.chat.regenerate(conversationId, cb, id))
-  )
+  ipcMain.handle(IpcChannels.ChatRegenerate, (_e, conversationId: string) => {
+    const id = requireString(conversationId, 'conversationId', 128)
+    return startStream(id, (cb, mid) => services.chat.regenerate(id, cb, mid))
+  })
 
   ipcMain.handle(IpcChannels.ChatCancel, (_e, conversationId: string) => {
-    services.chat.cancel(conversationId)
+    services.chat.cancel(requireString(conversationId, 'conversationId', 128))
+  })
+}
+
+/** Max attachments and per-image base64 size (≈11 MB decoded) accepted per turn. */
+const MAX_IMAGES = 8
+const MAX_IMAGE_BASE64 = 15_000_000
+const SUPPORTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'] as const
+
+function validateChatSend(req: ChatSendRequest): ChatSendRequest {
+  const conversationId = requireString(req?.conversationId, 'conversationId', 128)
+  const content = optionalString(req?.content, 'content', 200_000)
+  const images = validateImages(req?.images)
+  if (!content.trim() && images.length === 0) {
+    throw new Error('A message or an image is required.')
+  }
+  return {
+    conversationId,
+    content,
+    images: images.length ? images : undefined,
+    model: req?.model ? oneOf(req.model, MODEL_IDS, 'model') : undefined,
+    enableFiles: Boolean(req?.enableFiles),
+    enableResearch: Boolean(req?.enableResearch),
+    enableAutomation: Boolean(req?.enableAutomation)
+  }
+}
+
+function validateImages(images: unknown): ImageAttachment[] {
+  if (images === undefined || images === null) return []
+  if (!Array.isArray(images)) throw new Error('images must be an array.')
+  if (images.length > MAX_IMAGES) {
+    throw new Error(`Too many attachments (max ${MAX_IMAGES}).`)
+  }
+  return images.map((img: Record<string, unknown>) => {
+    const data = requireString(img?.data, 'image data', MAX_IMAGE_BASE64)
+    const mediaType = oneOf(img?.mediaType, SUPPORTED_IMAGE_TYPES, 'image mediaType')
+    return { data, mediaType, name: img?.name ? requireString(img.name, 'image name', 256) : undefined }
   })
 }
 
@@ -136,7 +191,7 @@ function registerConversations(services: Services): void {
   })
 
   ipcMain.handle(IpcChannels.ConversationSearch, (_e, query: string) =>
-    services.db.searchConversations(query)
+    services.db.searchConversations(optionalString(query, 'query', 512))
   )
 }
 
@@ -147,10 +202,23 @@ function registerConversations(services: Services): void {
 function registerMemory(services: Services): void {
   ipcMain.handle(IpcChannels.MemoryList, () => services.db.listMemory())
   ipcMain.handle(IpcChannels.MemorySearch, (_e, query: string) => services.db.searchMemory(query))
-  ipcMain.handle(IpcChannels.MemoryUpsert, (_e, entry) =>
-    services.db.upsertMemory({ ...entry, source: entry.source ?? 'user' })
+  ipcMain.handle(IpcChannels.MemoryUpsert, (_e, entry: Record<string, unknown>) => {
+    const validated: MemoryUpsertRequest = {
+      id: entry.id ? requireString(entry.id, 'id', 128) : undefined,
+      kind: oneOf(entry.kind, MEMORY_KINDS, 'kind'),
+      key: assertNoNullBytes(requireString(entry.key, 'key', 512).trim(), 'key'),
+      value: assertNoNullBytes(requireString(entry.value, 'value', 8_192).trim(), 'value'),
+      importance: clampNumber(entry.importance, 0, 1, 0.5),
+      source: 'user'
+    }
+    if (!validated.key || !validated.value) {
+      throw new Error('Memory key and value are required.')
+    }
+    return services.db.upsertMemory(validated)
+  })
+  ipcMain.handle(IpcChannels.MemoryDelete, (_e, id: string) =>
+    services.db.deleteMemory(requireString(id, 'id', 128))
   )
-  ipcMain.handle(IpcChannels.MemoryDelete, (_e, id: string) => services.db.deleteMemory(id))
 }
 
 /* ------------------------------------------------------------------ */
@@ -185,9 +253,13 @@ function registerScreenshot(services: Services): void {
   ipcMain.handle(IpcChannels.ScreenshotCapture, (_e, sourceId?: string) =>
     services.screenshot.capture(sourceId)
   )
-  ipcMain.handle(IpcChannels.ScreenshotAnalyze, (_e, req: ScreenshotAnalyzeRequest) =>
-    services.chat.describeImage(req.data, req.mediaType, req.prompt, req.model)
-  )
+  ipcMain.handle(IpcChannels.ScreenshotAnalyze, (_e, req: ScreenshotAnalyzeRequest) => {
+    const data = requireString(req?.data, 'image data', MAX_IMAGE_BASE64)
+    const mediaType = oneOf(req?.mediaType, SUPPORTED_IMAGE_TYPES, 'mediaType')
+    const prompt = optionalString(req?.prompt, 'prompt', 4_000)
+    const model = req?.model ? oneOf(req.model, MODEL_IDS, 'model') : undefined
+    return services.chat.describeImage(data, mediaType, prompt || undefined, model)
+  })
 }
 
 /* ------------------------------------------------------------------ */
@@ -195,7 +267,12 @@ function registerScreenshot(services: Services): void {
 /* ------------------------------------------------------------------ */
 
 function registerResearch(services: Services): void {
-  ipcMain.handle(IpcChannels.ResearchRun, (_e, req: ResearchRequest) => services.research.run(req))
+  ipcMain.handle(IpcChannels.ResearchRun, (_e, req: ResearchRequest) => {
+    const query = requireString(req?.query, 'query', 4_000)
+    const model = req?.model ? oneOf(req.model, MODEL_IDS, 'model') : undefined
+    const maxSources = clampNumber(req?.maxSources, 1, 10, 5)
+    return services.research.run({ query, model, maxSources })
+  })
 }
 
 /* ------------------------------------------------------------------ */
@@ -222,9 +299,33 @@ function registerSettings(services: Services): void {
   ipcMain.handle(IpcChannels.SettingsGet, () => services.config.toSettings())
 
   ipcMain.handle(IpcChannels.SettingsSet, (_e, update: SettingsUpdate) => {
-    if (update.apiKey !== undefined) services.config.setApiKey(update.apiKey)
-    const { apiKey: _apiKey, ...rest } = update
-    services.config.update(rest)
+    if (update.apiKey !== undefined) {
+      services.config.setApiKey(requireString(update.apiKey, 'apiKey', 512))
+    }
+
+    // Validate and coerce each field the renderer may set.
+    const clean: Partial<SettingsUpdate> = {}
+    if (update.model !== undefined) clean.model = oneOf(update.model, MODEL_IDS, 'model')
+    if (update.theme !== undefined) clean.theme = oneOf(update.theme, THEMES, 'theme')
+    if (update.workspaceDir !== undefined) {
+      clean.workspaceDir = assertNoNullBytes(
+        requireString(update.workspaceDir, 'workspaceDir', 4_096),
+        'workspaceDir'
+      )
+    }
+    if (update.persona !== undefined) clean.persona = requireString(update.persona, 'persona', 8_192)
+    if (update.voiceUri !== undefined) {
+      clean.voiceUri = update.voiceUri === null ? null : requireString(update.voiceUri, 'voiceUri', 512)
+    }
+    if (update.voiceRate !== undefined) clean.voiceRate = clampNumber(update.voiceRate, 0.5, 2, 1)
+    if (update.voiceOutputEnabled !== undefined) {
+      clean.voiceOutputEnabled = Boolean(update.voiceOutputEnabled)
+    }
+    if (update.requireAutomationApproval !== undefined) {
+      clean.requireAutomationApproval = Boolean(update.requireAutomationApproval)
+    }
+
+    services.config.update(clean)
     return services.config.toSettings()
   })
 

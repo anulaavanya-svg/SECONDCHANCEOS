@@ -3,7 +3,7 @@
  * body, and (for assistant turns) a footer with copy / speak actions and the
  * tools that were used.
  */
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import type { ChatMessage } from '@shared/types'
 import { Markdown } from '../lib/markdown'
 import { speak, cancelSpeech, synthesisSupported } from '../lib/voice'
@@ -16,7 +16,16 @@ interface Props {
   streamingText?: string
 }
 
-export function MessageBubble({ message, streaming, streamingText }: Props): JSX.Element {
+/**
+ * Memoized so that finalized messages don't re-render while the streaming
+ * bubble updates on every delta. Only the active streaming bubble (whose
+ * `streamingText` changes) re-renders.
+ */
+export const MessageBubble = memo(function MessageBubble({
+  message,
+  streaming,
+  streamingText
+}: Props): JSX.Element {
   const { settings } = useApp()
   const [copied, setCopied] = useState(false)
   const isUser = message.role === 'user'
@@ -90,7 +99,7 @@ export function MessageBubble({ message, streaming, streamingText }: Props): JSX
       </div>
     </div>
   )
-}
+})
 
 function toolLabel(tool: string): string {
   const labels: Record<string, string> = {

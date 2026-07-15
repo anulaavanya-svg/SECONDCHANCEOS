@@ -67,6 +67,9 @@ export class AnthropicService {
     assistantMessageId: string
   ): Promise<ChatMessage> {
     const { db } = this.deps
+    if (this.aborters.has(req.conversationId)) {
+      throw new Error('Nila is still responding in this conversation.')
+    }
     const model = req.model ?? db.getConversation(req.conversationId)?.model ?? DEFAULT_MODEL
     const flags: TurnFlags = {
       files: req.enableFiles ?? false,
@@ -99,6 +102,9 @@ export class AnthropicService {
     assistantMessageId: string
   ): Promise<ChatMessage> {
     const { db } = this.deps
+    if (this.aborters.has(conversationId)) {
+      throw new Error('Nila is still responding in this conversation.')
+    }
     const messages = db.getMessages(conversationId)
     if (messages.length === 0) {
       throw new Error('Nothing to regenerate yet.')

@@ -7,6 +7,9 @@
   "license": "MIT",
   "main": "./out/main/index.js",
   "scripts": {
+    "setup": "npm install && npm run doctor",
+    "doctor": "node scripts/doctor.mjs",
+    "predev": "node scripts/doctor.mjs",
     "dev": "electron-vite dev",
     "build": "npm run typecheck && electron-vite build",
     "start": "electron-vite preview",

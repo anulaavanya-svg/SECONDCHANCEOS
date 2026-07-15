@@ -24,10 +24,16 @@ export function Modal({ title, onClose, children, footer, wide }: Props): JSX.El
 
   return (
     <div className="overlay" onMouseDown={onClose}>
-      <div className={`modal ${wide ? 'modal--wide' : ''}`} onMouseDown={(e) => e.stopPropagation()}>
+      <div
+        className={`modal ${wide ? 'modal--wide' : ''}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
         <div className="modal__header">
           <div className="modal__title">{title}</div>
-          <button className="icon-btn" onClick={onClose} title="Close">
+          <button className="icon-btn" onClick={onClose} title="Close" aria-label="Close">
             <CloseIcon size={18} />
           </button>
         </div>

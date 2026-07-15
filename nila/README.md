@@ -69,9 +69,13 @@ nila/
 
 ```bash
 cd nila
-npm install          # installs deps and the Electron binary
+npm run setup        # install dependencies + run environment diagnostics
 npm run dev          # launch in development with hot reload
 ```
+
+`npm run setup` installs everything and runs `npm run doctor`, which checks your
+Node version, native modules, and Electron, and prints actionable hints for
+anything missing. You can re-run diagnostics any time with `npm run doctor`.
 
 On first launch, click **Add API key** (or open **Settings**) and paste your
 key. You can also set `ANTHROPIC_API_KEY` in the environment to override it.
@@ -80,6 +84,8 @@ key. You can also set `ANTHROPIC_API_KEY` in the environment to override it.
 
 | Script | Description |
 |---|---|
+| `npm run setup` | Install dependencies and run diagnostics. |
+| `npm run doctor` | Check the local environment is ready. |
 | `npm run dev` | Run the app with hot-reloading. |
 | `npm run build` | Typecheck, then bundle main/preload/renderer into `out/`. |
 | `npm run typecheck` | Typecheck the Node and web projects. |
