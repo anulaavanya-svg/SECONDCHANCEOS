@@ -1,5 +1,7 @@
 # Nila
 
+![Nila CI](https://github.com/anulaavanya-svg/SECONDCHANCEOS/actions/workflows/nila-ci.yml/badge.svg)
+
 A polished, cross-platform **desktop AI assistant** built with Electron, React,
 and TypeScript. Nila chats, listens and speaks, remembers you across sessions,
 helps with code, researches the live web, sees your screen, manages files in a
