@@ -11,7 +11,6 @@ import { randomUUID } from 'node:crypto'
 import { IpcChannels } from '@shared/ipc-channels'
 import type {
   AppInfo,
-  ChatMessage,
   ChatSendRequest,
   ResearchRequest,
   ScreenshotAnalyzeRequest,
@@ -19,6 +18,7 @@ import type {
 } from '@shared/types'
 import { DEFAULT_MODEL } from '@shared/types'
 import type { Services } from '../container'
+import { conversationToMarkdown, safeExportName } from '../services/export'
 import { createLogger } from '../services/logger'
 
 const log = createLogger('ipc')
@@ -118,31 +118,15 @@ function registerConversations(services: Services): void {
     const messages = services.db.getMessages(id)
     const markdown = conversationToMarkdown(conversation.title, messages)
 
-    const safeName = conversation.title.replace(/[^\w\- ]+/g, '').trim().slice(0, 60) || 'conversation'
     const result = await dialog.showSaveDialog({
       title: 'Export conversation',
-      defaultPath: `${safeName}.md`,
+      defaultPath: `${safeExportName(conversation.title)}.md`,
       filters: [{ name: 'Markdown', extensions: ['md'] }]
     })
     if (result.canceled || !result.filePath) return null
     await services.files.write(result.filePath, markdown, true)
     return result.filePath
   })
-}
-
-function conversationToMarkdown(title: string, messages: ChatMessage[]): string {
-  const lines: string[] = [`# ${title}`, '']
-  for (const m of messages) {
-    lines.push(`## ${m.role === 'user' ? 'You' : 'Nila'}`)
-    lines.push('')
-    lines.push(m.content)
-    if (m.toolsUsed?.length) {
-      lines.push('')
-      lines.push(`*Tools used: ${m.toolsUsed.join(', ')}*`)
-    }
-    lines.push('')
-  }
-  return lines.join('\n')
 }
 
 /* ------------------------------------------------------------------ */

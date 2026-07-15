@@ -78,6 +78,7 @@ key. You can also set `ANTHROPIC_API_KEY` in the environment to override it.
 | `npm run dev` | Run the app with hot-reloading. |
 | `npm run build` | Typecheck, then bundle main/preload/renderer into `out/`. |
 | `npm run typecheck` | Typecheck the Node and web projects. |
+| `npm test` | Run the Vitest unit suite. |
 | `npm run lint` | Lint with ESLint. |
 | `npm run start` | Preview the production build. |
 | `npm run dist` | Package installers with electron-builder. |
@@ -112,6 +113,18 @@ Settings are stored in the OS-standard app-data directory (e.g.
 - **better-sqlite3** for conversations, messages, memory, and the automation log.
 - **@anthropic-ai/sdk** for streaming chat, tools, vision, and web research.
 - **Web Speech API** for voice input and spoken output.
+
+## Testing
+
+`npm test` runs the Vitest suite. Coverage focuses on the pure and
+security-critical logic that doesn't require the Electron runtime:
+
+- **Workspace sandboxing** — path-traversal escapes are rejected; trusted
+  (user-picked) paths are allowed.
+- **Memory formatting** — the long-term-memory prompt block groups entries by
+  kind and stays empty when there's nothing to inject.
+- **Markdown export** — role headings, tool footnotes, and safe filenames.
+- **Formatting utilities** — relative time, byte sizes, and history buckets.
 
 ## License
 
