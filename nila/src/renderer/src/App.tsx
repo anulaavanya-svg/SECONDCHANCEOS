@@ -2,13 +2,23 @@
  * Root component. Renders the sidebar + chat layout, mounts modals and toasts,
  * and shows a lightweight boot state while the store initializes.
  */
+import { lazy, Suspense } from 'react'
 import { useApp } from './state/store'
 import { Sidebar } from './components/Sidebar'
 import { ChatView } from './components/ChatView'
-import { SettingsModal } from './components/SettingsModal'
-import { MemoryPanel } from './components/MemoryPanel'
-import { CommandPalette } from './components/CommandPalette'
 import { Toasts } from './components/Toasts'
+
+// Modals are shown on demand, so load them lazily to keep the initial bundle
+// small and startup fast.
+const SettingsModal = lazy(() =>
+  import('./components/SettingsModal').then((m) => ({ default: m.SettingsModal }))
+)
+const MemoryPanel = lazy(() =>
+  import('./components/MemoryPanel').then((m) => ({ default: m.MemoryPanel }))
+)
+const CommandPalette = lazy(() =>
+  import('./components/CommandPalette').then((m) => ({ default: m.CommandPalette }))
+)
 
 export function App(): JSX.Element {
   const { ready, settings, modal } = useApp()
@@ -30,9 +40,11 @@ export function App(): JSX.Element {
       <ChatView />
 
       {settings && !settings.apiKeyConfigured && <FirstRunBanner />}
-      {modal === 'settings' && <SettingsModal />}
-      {modal === 'memory' && <MemoryPanel />}
-      {modal === 'command' && <CommandPalette />}
+      <Suspense fallback={null}>
+        {modal === 'settings' && <SettingsModal />}
+        {modal === 'memory' && <MemoryPanel />}
+        {modal === 'command' && <CommandPalette />}
+      </Suspense>
       <Toasts />
     </div>
   )

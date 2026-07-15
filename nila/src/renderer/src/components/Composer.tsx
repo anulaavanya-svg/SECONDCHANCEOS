@@ -3,7 +3,7 @@
  * or screenshot), per-turn tool toggles (files / research / automation), model
  * picker, push-to-talk voice input, and send/stop.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { MODELS, type ImageAttachment, type ModelId } from '@shared/types'
 import { useApp } from '../state/store'
 import { fileToBase64 } from '../lib/format'
@@ -14,7 +14,6 @@ import {
   type SlashActionId,
   type SlashCommand
 } from '../lib/slash'
-import { ScreenSourcePicker } from './ScreenSourcePicker'
 import {
   CameraIcon,
   CloseIcon,
@@ -26,6 +25,10 @@ import {
   StopIcon,
   TerminalIcon
 } from './Icons'
+
+const ScreenSourcePicker = lazy(() =>
+  import('./ScreenSourcePicker').then((m) => ({ default: m.ScreenSourcePicker }))
+)
 
 export interface ComposerHandle {
   setText(text: string): void
@@ -399,7 +402,9 @@ export function Composer({ seededPrompt, onConsumeSeed }: Props): JSX.Element {
       </div>
 
       {pickerOpen && (
-        <ScreenSourcePicker onPick={(id) => captureScreen(id)} onClose={() => setPickerOpen(false)} />
+        <Suspense fallback={null}>
+          <ScreenSourcePicker onPick={(id) => captureScreen(id)} onClose={() => setPickerOpen(false)} />
+        </Suspense>
       )}
     </div>
   )

@@ -82,6 +82,12 @@ const AppContext = createContext<AppContextValue | null>(null)
 
 let toastSeq = 0
 
+/** Strip the "Error: " prefix Electron prepends to rejected invoke messages. */
+function cleanError(err: unknown): string {
+  const message = err instanceof Error ? err.message : String(err)
+  return message.replace(/^Error:\s*/i, '')
+}
+
 export function AppProvider({ children }: { children: ReactNode }): JSX.Element {
   const [ready, setReady] = useState(false)
   const [settings, setSettings] = useState<Settings | null>(null)
@@ -145,7 +151,7 @@ export function AppProvider({ children }: { children: ReactNode }): JSX.Element 
           await selectConversationInternal(list[0].id)
         }
       } catch (err) {
-        notify({ level: 'error', title: 'Startup error', body: String(err) })
+        notify({ level: 'error', title: 'Startup error', body: cleanError(err) })
       } finally {
         if (mounted) setReady(true)
       }
@@ -320,7 +326,9 @@ export function AppProvider({ children }: { children: ReactNode }): JSX.Element 
       })
       setStreaming({ messageId, text: '', tools: [] })
     } catch (err) {
-      notify({ level: 'error', title: 'Could not send', body: String(err) })
+      // Roll back the optimistic message so the UI reflects reality.
+      setMessages((prev) => prev.filter((m) => m.id !== optimistic.id))
+      notify({ level: 'error', title: 'Could not send', body: cleanError(err) })
     }
   }, [notify])
 
@@ -343,7 +351,7 @@ export function AppProvider({ children }: { children: ReactNode }): JSX.Element 
       const { messageId } = await window.nila.chat.regenerate(id)
       setStreaming({ messageId, text: '', tools: [] })
     } catch (err) {
-      notify({ level: 'error', title: 'Could not regenerate', body: String(err) })
+      notify({ level: 'error', title: 'Could not regenerate', body: cleanError(err) })
     }
   }, [notify])
 
@@ -380,7 +388,7 @@ export function AppProvider({ children }: { children: ReactNode }): JSX.Element 
       const path = await window.nila.conversations.export(id)
       if (path) notify({ level: 'success', title: 'Exported', body: path })
     } catch (err) {
-      notify({ level: 'error', title: 'Export failed', body: String(err) })
+      notify({ level: 'error', title: 'Export failed', body: cleanError(err) })
     }
   }, [notify])
 

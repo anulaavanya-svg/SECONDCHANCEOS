@@ -10,8 +10,14 @@ type Level = 'debug' | 'info' | 'warn' | 'error'
 
 const LEVEL_ORDER: Record<Level, number> = { debug: 10, info: 20, warn: 30, error: 40 }
 
-let minLevel: Level = process.env.NODE_ENV === 'development' ? 'debug' : 'info'
+let minLevel: Level = resolveDefaultLevel()
 let logFile: string | null = null
+
+function resolveDefaultLevel(): Level {
+  // Stay silent under the test runner to keep output clean.
+  if (process.env.VITEST || process.env.NODE_ENV === 'test') return 'error'
+  return process.env.NODE_ENV === 'development' ? 'debug' : 'info'
+}
 
 function write(level: Level, scope: string, args: unknown[]): void {
   if (LEVEL_ORDER[level] < LEVEL_ORDER[minLevel]) return
