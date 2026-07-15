@@ -39,10 +39,18 @@ jobs:
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
 
+      # Build the SQLite native binding so integration tests can run. (The
+      # Electron binary itself stays skipped — it isn't needed for CI.)
+      - name: Build native modules
+        run: npm rebuild better-sqlite3
+
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Unit tests
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit & integration tests
         run: npm test
 
       - name: Build bundles

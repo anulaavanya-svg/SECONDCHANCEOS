@@ -106,6 +106,20 @@ export function AppProvider({ children }: { children: ReactNode }): JSX.Element 
   const settingsRef = useRef<Settings | null>(null)
   settingsRef.current = settings
 
+  // Streaming deltas arrive faster than the screen refreshes; buffer them and
+  // flush once per animation frame so we re-render (and re-parse Markdown) at
+  // most ~60fps instead of on every token.
+  const streamBufferRef = useRef<{ messageId: string; text: string } | null>(null)
+  const rafRef = useRef<number | null>(null)
+
+  const clearStreamRaf = useCallback(() => {
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current)
+      rafRef.current = null
+    }
+    streamBufferRef.current = null
+  }, [])
+
   const notify = useCallback((payload: NotifyPayload) => {
     const id = ++toastSeq
     setToasts((prev) => [...prev, { ...payload, id }])
@@ -164,27 +178,40 @@ export function AppProvider({ children }: { children: ReactNode }): JSX.Element 
 
   /* ---- streaming subscriptions ---- */
   useEffect(() => {
+    const flush = (): void => {
+      rafRef.current = null
+      const buffer = streamBufferRef.current
+      if (!buffer) return
+      setStreaming((prev) =>
+        prev && prev.messageId === buffer.messageId
+          ? { ...prev, text: buffer.text }
+          : { messageId: buffer.messageId, text: buffer.text, tools: [] }
+      )
+    }
+
     const offChunk = window.nila.chat.onChunk((chunk) => {
       if (chunk.conversationId !== activeIdRef.current) return
-      setStreaming((prev) => {
-        if (!prev || prev.messageId !== chunk.messageId) {
-          return { messageId: chunk.messageId, text: chunk.delta, tools: [] }
-        }
-        return { ...prev, text: prev.text + chunk.delta }
-      })
+      const buffer = streamBufferRef.current
+      if (buffer && buffer.messageId === chunk.messageId) {
+        buffer.text += chunk.delta
+      } else {
+        streamBufferRef.current = { messageId: chunk.messageId, text: chunk.delta }
+      }
+      if (rafRef.current === null) rafRef.current = requestAnimationFrame(flush)
     })
 
     const offDone = window.nila.chat.onDone((done) => {
       void refreshConversations()
+      clearStreamRaf()
       if (done.conversationId !== activeIdRef.current) return
-      setMessages((prev) => {
-        const exists = prev.some((m) => m.id === done.message.id)
-        return exists ? prev : [...prev, done.message]
-      })
+      setMessages((prev) =>
+        prev.some((m) => m.id === done.message.id) ? prev : [...prev, done.message]
+      )
       setStreaming(null)
     })
 
     const offError = window.nila.chat.onError((err) => {
+      clearStreamRaf()
       setStreaming(null)
       notify({ level: 'error', title: 'Assistant error', body: err.message })
     })
@@ -193,9 +220,10 @@ export function AppProvider({ children }: { children: ReactNode }): JSX.Element 
       offChunk()
       offDone()
       offError()
+      clearStreamRaf()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [refreshConversations, notify])
+  }, [refreshConversations, notify, clearStreamRaf])
 
   /* ---- automation + notification subscriptions ---- */
   useEffect(() => {
@@ -242,22 +270,29 @@ export function AppProvider({ children }: { children: ReactNode }): JSX.Element 
   }, [])
 
   /* ---- internal helpers ---- */
-  const selectConversationInternal = async (id: string) => {
-    setActiveId(id)
-    activeIdRef.current = id
-    const [{ messages: msgs }, tasks] = await Promise.all([
-      window.nila.conversations.get(id),
-      window.nila.automation.list(id)
-    ])
-    setMessages(msgs)
-    setAutomation(tasks)
-    setStreaming(null)
-  }
+  const selectConversationInternal = useCallback(
+    async (id: string) => {
+      setActiveId(id)
+      activeIdRef.current = id
+      const [{ messages: msgs }, tasks] = await Promise.all([
+        window.nila.conversations.get(id),
+        window.nila.automation.list(id)
+      ])
+      setMessages(msgs)
+      setAutomation(tasks)
+      clearStreamRaf()
+      setStreaming(null)
+    },
+    [clearStreamRaf]
+  )
 
   /* ---- actions ---- */
-  const selectConversation = useCallback(async (id: string) => {
-    await selectConversationInternal(id)
-  }, [])
+  const selectConversation = useCallback(
+    async (id: string) => {
+      await selectConversationInternal(id)
+    },
+    [selectConversationInternal]
+  )
 
   const newConversation = useCallback(async () => {
     const conv = await window.nila.conversations.create()
@@ -285,7 +320,7 @@ export function AppProvider({ children }: { children: ReactNode }): JSX.Element 
         }
       }
     },
-    [conversations]
+    [conversations, selectConversationInternal]
   )
 
   const renameConversation = useCallback(async (id: string, title: string) => {
@@ -334,8 +369,9 @@ export function AppProvider({ children }: { children: ReactNode }): JSX.Element 
 
   const cancelStreaming = useCallback(() => {
     if (activeIdRef.current) void window.nila.chat.cancel(activeIdRef.current)
+    clearStreamRaf()
     setStreaming(null)
-  }, [])
+  }, [clearStreamRaf])
 
   const regenerate = useCallback(async () => {
     const id = activeIdRef.current

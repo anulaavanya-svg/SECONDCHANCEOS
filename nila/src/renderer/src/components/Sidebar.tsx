@@ -59,6 +59,7 @@ export function Sidebar(): JSX.Element {
         <input
           className="sidebar__search-input"
           placeholder="Search conversations…"
+          aria-label="Search conversations"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
@@ -94,12 +95,22 @@ export function Sidebar(): JSX.Element {
                     <div
                       key={conv.id}
                       className={`conversation ${conv.id === activeId ? 'active' : ''}`}
+                      role="button"
+                      tabIndex={0}
+                      aria-current={conv.id === activeId}
                       onClick={() => selectConversation(conv.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          void selectConversation(conv.id)
+                        }
+                      }}
                     >
                       <span className="conversation__title">{conv.title}</span>
                       <button
                         className="conversation__delete"
-                        title="Delete"
+                        title="Delete conversation"
+                        aria-label={`Delete conversation ${conv.title}`}
                         onClick={(e) => {
                           e.stopPropagation()
                           void deleteConversation(conv.id)
@@ -164,7 +175,15 @@ function SearchResults({
         <div
           key={result.id}
           className={`conversation conversation--result ${result.id === activeId ? 'active' : ''}`}
+          role="button"
+          tabIndex={0}
           onClick={() => onSelect(result.id)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              onSelect(result.id)
+            }
+          }}
         >
           <div style={{ minWidth: 0 }}>
             <div className="conversation__title">{result.title}</div>
