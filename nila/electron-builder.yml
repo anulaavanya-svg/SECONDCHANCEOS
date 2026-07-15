@@ -1,0 +1,47 @@
+appId: com.secondchanceos.nila
+productName: Nila
+copyright: Copyright © 2026 SecondChanceOS
+
+directories:
+  buildResources: build
+  output: release/${version}
+
+files:
+  - '!**/.vscode/*'
+  - '!src/*'
+  - '!electron.vite.config.{js,ts,mjs,cjs}'
+  - '!{.eslintrc.cjs,.prettierrc,.prettierignore,eslint.config.js}'
+  - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+  - '!{.env,.env.example,.gitignore}'
+  - '!{README.md,electron-builder.yml}'
+
+asarUnpack:
+  - resources/**
+  - '**/node_modules/better-sqlite3/**'
+
+win:
+  target:
+    - nsis
+  artifactName: ${productName}-${version}-setup.${ext}
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  deleteAppDataOnUninstall: false
+
+mac:
+  target:
+    - dmg
+  category: public.app-category.productivity
+  artifactName: ${productName}-${version}.${ext}
+
+linux:
+  target:
+    - AppImage
+    - deb
+  maintainer: SecondChanceOS
+  category: Utility
+  artifactName: ${productName}-${version}.${ext}
+
+npmRebuild: true
