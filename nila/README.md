@@ -128,13 +128,18 @@ Settings are stored in the OS-standard app-data directory (e.g.
 
 ## Testing
 
-`npm test` runs the Vitest suite. Coverage focuses on the pure and
-security-critical logic that doesn't require the Electron runtime:
+`npm test` runs the Vitest suite (unit + integration, 90+ tests):
 
+- **Database (integration)** — conversations, messages with image/tool
+  round-trips, memory upsert/search/ranking, conversation search, and the
+  automation audit log, against an in-memory SQLite database.
+- **Automation (integration)** — the propose → approve/reject/cancel lifecycle
+  and the shell executor.
+- **Tool registry** — flag-gated tool exposure and memory-tool dispatch.
+- **Input validation** — the IPC boundary validators and range clamping.
 - **Workspace sandboxing** — path-traversal escapes are rejected; trusted
   (user-picked) paths are allowed.
-- **Memory formatting** — the long-term-memory prompt block groups entries by
-  kind and stays empty when there's nothing to inject.
+- **Memory formatting** — the long-term-memory prompt block grouping/empty state.
 - **Markdown export** — role headings, tool footnotes, and safe filenames.
 - **Search** — snippet generation and SQL-`LIKE` pattern escaping.
 - **Fuzzy matching** — command-palette subsequence scoring and ranking.
