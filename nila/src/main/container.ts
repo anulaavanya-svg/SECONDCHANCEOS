@@ -4,7 +4,6 @@
  * avoids scattering singletons across the codebase.
  */
 import type { BrowserWindow } from 'electron'
-import type { ChatSendRequest } from '@shared/types'
 import { Config } from './services/config'
 import { Database } from './services/database'
 import { MemoryStore } from './services/memory-store'
@@ -12,7 +11,7 @@ import { FileService } from './services/files'
 import { ScreenshotService } from './services/screenshot'
 import { ResearchService } from './services/research'
 import { AnthropicClientProvider } from './services/anthropic-client'
-import { AnthropicService } from './services/anthropic'
+import { AnthropicService, type TurnFlags } from './services/anthropic'
 import { ToolRegistry, type ToolContext } from './services/tools'
 import { AutomationExecutor } from './automation/executor'
 import { AutomationManager } from './automation/manager'
@@ -49,19 +48,15 @@ export function createServices(getWindow: () => BrowserWindow | null): Services 
   const executor = new AutomationExecutor(files)
   const automation = new AutomationManager(db, config, executor, getWindow)
 
-  const makeToolContext = (req: ChatSendRequest): ToolContext => ({
-    conversationId: req.conversationId,
+  const makeToolContext = (conversationId: string, flags: TurnFlags): ToolContext => ({
+    conversationId,
     db,
     files,
     memory,
     research,
     screenshot,
     automation,
-    flags: {
-      files: req.enableFiles ?? false,
-      research: req.enableResearch ?? false,
-      automation: req.enableAutomation ?? false
-    }
+    flags
   })
 
   const chat = new AnthropicService({ config, db, memory, clients, tools, makeToolContext })

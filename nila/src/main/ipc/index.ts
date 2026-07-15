@@ -41,46 +41,53 @@ export function registerIpc(services: Services, getWindow: () => BrowserWindow |
 /* ------------------------------------------------------------------ */
 
 function registerChat(services: Services, getWindow: () => BrowserWindow | null): void {
-  ipcMain.handle(IpcChannels.ChatSend, async (_e, req: ChatSendRequest) => {
+  // Shared plumbing: wire a streaming run's callbacks to the renderer and
+  // return the pre-generated assistant message id immediately.
+  const startStream = (
+    conversationId: string,
+    run: (
+      cb: { onDelta(delta: string): void; onToolUse(name: string): void },
+      assistantMessageId: string
+    ) => Promise<ReturnType<Services['db']['addMessage']>>
+  ): { messageId: string } => {
     const assistantMessageId = randomUUID()
     const win = getWindow()
 
-    // Kick off streaming without blocking the invoke response.
-    void services.chat
-      .stream(
-        req,
-        {
-          onDelta: (delta) =>
-            win?.webContents.send(IpcChannels.ChatStreamChunk, {
-              conversationId: req.conversationId,
-              messageId: assistantMessageId,
-              delta
-            }),
-          onToolUse: (name) =>
-            win?.webContents.send(IpcChannels.Notify, {
-              level: 'info',
-              title: `Using tool: ${name}`
-            })
-        },
-        assistantMessageId
-      )
+    void run(
+      {
+        onDelta: (delta) =>
+          win?.webContents.send(IpcChannels.ChatStreamChunk, {
+            conversationId,
+            messageId: assistantMessageId,
+            delta
+          }),
+        onToolUse: (name) =>
+          win?.webContents.send(IpcChannels.Notify, {
+            level: 'info',
+            title: `Using tool: ${name}`
+          })
+      },
+      assistantMessageId
+    )
       .then((message) => {
-        win?.webContents.send(IpcChannels.ChatStreamDone, {
-          conversationId: req.conversationId,
-          message
-        })
+        win?.webContents.send(IpcChannels.ChatStreamDone, { conversationId, message })
       })
       .catch((err: unknown) => {
         const message = err instanceof Error ? err.message : String(err)
         log.warn('chat stream failed', message)
-        win?.webContents.send(IpcChannels.ChatStreamError, {
-          conversationId: req.conversationId,
-          message
-        })
+        win?.webContents.send(IpcChannels.ChatStreamError, { conversationId, message })
       })
 
     return { messageId: assistantMessageId }
-  })
+  }
+
+  ipcMain.handle(IpcChannels.ChatSend, (_e, req: ChatSendRequest) =>
+    startStream(req.conversationId, (cb, id) => services.chat.stream(req, cb, id))
+  )
+
+  ipcMain.handle(IpcChannels.ChatRegenerate, (_e, conversationId: string) =>
+    startStream(conversationId, (cb, id) => services.chat.regenerate(conversationId, cb, id))
+  )
 
   ipcMain.handle(IpcChannels.ChatCancel, (_e, conversationId: string) => {
     services.chat.cancel(conversationId)

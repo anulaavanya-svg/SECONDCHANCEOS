@@ -6,6 +6,7 @@
 export const IpcChannels = {
   // Chat / conversation
   ChatSend: 'chat:send',
+  ChatRegenerate: 'chat:regenerate',
   ChatStreamChunk: 'chat:stream-chunk',
   ChatStreamDone: 'chat:stream-done',
   ChatStreamError: 'chat:stream-error',

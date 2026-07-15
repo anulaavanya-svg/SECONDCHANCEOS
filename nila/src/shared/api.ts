@@ -36,6 +36,8 @@ export interface NilaApi {
   chat: {
     /** Start streaming a response. Resolves once the request is accepted. */
     send(req: ChatSendRequest): Promise<{ messageId: string }>
+    /** Drop the last assistant reply and stream a fresh one. */
+    regenerate(conversationId: string): Promise<{ messageId: string }>
     cancel(conversationId: string): Promise<void>
     onChunk(cb: (chunk: ChatStreamChunk) => void): () => void
     onDone(cb: (done: ChatStreamDone) => void): () => void

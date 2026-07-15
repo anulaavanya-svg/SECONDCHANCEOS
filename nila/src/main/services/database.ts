@@ -246,6 +246,10 @@ export class Database {
       .run(content, toolsUsed ? JSON.stringify(toolsUsed) : null, id)
   }
 
+  deleteMessage(id: string): void {
+    this.db.prepare(`DELETE FROM messages WHERE id = ?`).run(id)
+  }
+
   getMessages(conversationId: string): ChatMessage[] {
     const rows = this.db
       .prepare(

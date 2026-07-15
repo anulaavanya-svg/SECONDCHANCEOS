@@ -26,18 +26,27 @@ export interface StreamCallbacks {
   onToolUse(name: string): void
 }
 
+/** Per-turn tool availability. */
+export interface TurnFlags {
+  files: boolean
+  research: boolean
+  automation: boolean
+}
+
 export interface ChatDeps {
   config: Config
   db: Database
   memory: MemoryStore
   clients: AnthropicClientProvider
   tools: ToolRegistry
-  /** Builds the per-request tool context (services + flags). */
-  makeToolContext(req: ChatSendRequest): ToolContext
+  /** Builds the tool context (services + per-turn flags) for a conversation. */
+  makeToolContext(conversationId: string, flags: TurnFlags): ToolContext
 }
 
 export class AnthropicService {
   private readonly aborters = new Map<string, AbortController>()
+  /** Remembers the last turn's model + flags per conversation, for regeneration. */
+  private readonly lastTurn = new Map<string, { model: ModelId; flags: TurnFlags }>()
 
   constructor(private readonly deps: ChatDeps) {}
 
@@ -59,6 +68,12 @@ export class AnthropicService {
   ): Promise<ChatMessage> {
     const { db } = this.deps
     const model = req.model ?? db.getConversation(req.conversationId)?.model ?? DEFAULT_MODEL
+    const flags: TurnFlags = {
+      files: req.enableFiles ?? false,
+      research: req.enableResearch ?? false,
+      automation: req.enableAutomation ?? false
+    }
+    this.lastTurn.set(req.conversationId, { model, flags })
 
     // Record the user message so history + persistence stay in sync.
     db.addMessage({
@@ -70,14 +85,58 @@ export class AnthropicService {
     db.touchConversation(req.conversationId, model)
     this.maybeTitle(req.conversationId, req.content)
 
+    return this.runLoop(req.conversationId, model, flags, cb, assistantMessageId)
+  }
+
+  /**
+   * Regenerate the last assistant response: drop it (if present) and re-run the
+   * conversation from the preceding user turn, reusing the last turn's model and
+   * tool flags when known.
+   */
+  async regenerate(
+    conversationId: string,
+    cb: StreamCallbacks,
+    assistantMessageId: string
+  ): Promise<ChatMessage> {
+    const { db } = this.deps
+    const messages = db.getMessages(conversationId)
+    if (messages.length === 0) {
+      throw new Error('Nothing to regenerate yet.')
+    }
+    const last = messages[messages.length - 1]
+    if (last.role === 'assistant') {
+      db.deleteMessage(last.id)
+    }
+
+    const remembered = this.lastTurn.get(conversationId)
+    const model = remembered?.model ?? db.getConversation(conversationId)?.model ?? DEFAULT_MODEL
+    const flags: TurnFlags = remembered?.flags ?? {
+      files: false,
+      research: false,
+      automation: false
+    }
+    return this.runLoop(conversationId, model, flags, cb, assistantMessageId)
+  }
+
+  /**
+   * Shared streaming + agentic tool loop over the current conversation history.
+   * Assumes the history already ends with the turn to respond to.
+   */
+  private async runLoop(
+    conversationId: string,
+    model: ModelId,
+    flags: TurnFlags,
+    cb: StreamCallbacks,
+    assistantMessageId: string
+  ): Promise<ChatMessage> {
     const client = this.deps.clients.get()
-    const toolCtx = this.deps.makeToolContext(req)
+    const toolCtx = this.deps.makeToolContext(conversationId, flags)
     const toolSpecs = this.deps.tools.specs(toolCtx)
     const system = this.buildSystemPrompt(model)
-    const messages = this.buildHistory(req.conversationId)
+    const messages = this.buildHistory(conversationId)
 
     const controller = new AbortController()
-    this.aborters.set(req.conversationId, controller)
+    this.aborters.set(conversationId, controller)
 
     const toolsUsed = new Set<string>()
     let fullText = ''
@@ -141,11 +200,11 @@ export class AnthropicService {
         }
       }
     } catch (err) {
-      this.aborters.delete(req.conversationId)
+      this.aborters.delete(conversationId)
       if (controller.signal.aborted) {
         // Persist whatever we streamed before cancellation.
         return this.persistAssistant(
-          req.conversationId,
+          conversationId,
           fullText || '_(cancelled)_',
           toolsUsed,
           assistantMessageId
@@ -154,13 +213,8 @@ export class AnthropicService {
       throw new Error(friendlyError(err))
     }
 
-    this.aborters.delete(req.conversationId)
-    return this.persistAssistant(
-      req.conversationId,
-      fullText.trim(),
-      toolsUsed,
-      assistantMessageId
-    )
+    this.aborters.delete(conversationId)
+    return this.persistAssistant(conversationId, fullText.trim(), toolsUsed, assistantMessageId)
   }
 
   /** One-shot image description used by the screenshot "Analyze" action. */

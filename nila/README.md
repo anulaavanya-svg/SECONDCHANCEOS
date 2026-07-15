@@ -17,7 +17,7 @@ independent of the SecondChanceOS web platform; nothing here touches that app.
 
 | Capability | How it works |
 |---|---|
-| **AI chat** | Streaming responses from Claude with a full agentic tool loop. |
+| **AI chat** | Streaming responses from Claude with a full agentic tool loop, plus one-click regenerate. |
 | **Voice** | Push-to-talk dictation and spoken replies via the Web Speech API. |
 | **Persistent memory** | Long-term facts stored in SQLite and injected into every prompt. Browse/edit them in the Memory panel. |
 | **Coding help** | Read/write files in a sandboxed workspace; Markdown + code rendering. |

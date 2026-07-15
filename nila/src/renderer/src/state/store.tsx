@@ -65,6 +65,7 @@ interface AppActions {
     enableAutomation: boolean
   }): Promise<void>
   cancelStreaming(): void
+  regenerate(): Promise<void>
   approveAutomation(id: string): Promise<void>
   rejectAutomation(id: string): Promise<void>
   saveSettings(update: Partial<Settings> & { apiKey?: string }): Promise<void>
@@ -328,6 +329,24 @@ export function AppProvider({ children }: { children: ReactNode }): JSX.Element 
     setStreaming(null)
   }, [])
 
+  const regenerate = useCallback(async () => {
+    const id = activeIdRef.current
+    if (!id) return
+    // Optimistically drop the last assistant message from the view.
+    setMessages((prev) => {
+      if (prev.length && prev[prev.length - 1].role === 'assistant') {
+        return prev.slice(0, -1)
+      }
+      return prev
+    })
+    try {
+      const { messageId } = await window.nila.chat.regenerate(id)
+      setStreaming({ messageId, text: '', tools: [] })
+    } catch (err) {
+      notify({ level: 'error', title: 'Could not regenerate', body: String(err) })
+    }
+  }, [notify])
+
   const approveAutomation = useCallback(async (id: string) => {
     await window.nila.automation.approve(id)
     if (activeIdRef.current) {
@@ -389,6 +408,7 @@ export function AppProvider({ children }: { children: ReactNode }): JSX.Element 
       renameConversation,
       sendMessage,
       cancelStreaming,
+      regenerate,
       approveAutomation,
       rejectAutomation,
       saveSettings,
@@ -414,6 +434,7 @@ export function AppProvider({ children }: { children: ReactNode }): JSX.Element 
       renameConversation,
       sendMessage,
       cancelStreaming,
+      regenerate,
       approveAutomation,
       rejectAutomation,
       saveSettings,

@@ -24,6 +24,7 @@ function on<T>(channel: string, cb: (payload: T) => void): () => void {
 const api: NilaApi = {
   chat: {
     send: (req) => ipcRenderer.invoke(IpcChannels.ChatSend, req),
+    regenerate: (conversationId) => ipcRenderer.invoke(IpcChannels.ChatRegenerate, conversationId),
     cancel: (conversationId) => ipcRenderer.invoke(IpcChannels.ChatCancel, conversationId),
     onChunk: (cb) => on<ChatStreamChunk>(IpcChannels.ChatStreamChunk, cb),
     onDone: (cb) => on<ChatStreamDone>(IpcChannels.ChatStreamDone, cb),

@@ -500,6 +500,12 @@ select {
   background: var(--bg-input);
 }
 
+.regenerate-row {
+  display: flex;
+  justify-content: center;
+  padding: 4px 0 8px;
+}
+
 /* Cursor for streaming */
 .cursor {
   display: inline-block;
