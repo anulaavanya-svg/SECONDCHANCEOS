@@ -276,18 +276,24 @@ export class AnthropicService {
 
   private buildSystemPrompt(model: ModelId): string {
     const parts: string[] = [this.deps.config.getPersona()]
-    parts.push(`Today's date is ${new Date().toISOString().slice(0, 10)}.`)
-    parts.push(`You are currently running as model ${model}.`)
+    parts.push(
+      `Context: today is ${new Date().toISOString().slice(0, 10)}; you are running as ` +
+        `model ${model}. File tools operate inside the workspace folder ` +
+        `"${this.deps.config.getWorkspaceDir()}" — paths are relative to it.`
+    )
 
     const memoryBlock = this.deps.memory.buildContextBlock()
     if (memoryBlock) parts.push(memoryBlock)
 
     parts.push(
-      'Tool guidance: prefer answering directly for simple questions. Use tools when they ' +
-        'genuinely help — save durable facts with `remember`, read/write workspace files when ' +
-        'asked, research the web for current information, capture the screen when the user refers ' +
-        'to what they see, and propose desktop actions (which require the user to approve) only ' +
-        'when the user wants something done on their machine.'
+      'Tool guidance: prefer answering directly for simple questions, and reach for tools only ' +
+        'when they genuinely help. Save durable facts about the user with `remember` (stable ' +
+        'preferences, ongoing projects, people) rather than trivia. Read/write workspace files ' +
+        'when asked. Research the web for current or uncertain information and cite what you use. ' +
+        'Capture the screen when the user refers to what they can see. Propose desktop actions ' +
+        '(shell, open, file operations) only when the user wants something done on their machine — ' +
+        'these always require explicit approval, so batch related steps and explain each clearly. ' +
+        'When you use a tool, briefly tell the user what you did.'
     )
     return parts.join('\n\n')
   }
