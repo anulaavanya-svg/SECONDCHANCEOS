@@ -78,10 +78,10 @@ function registerChat(services: Services, getWindow: () => BrowserWindow | null)
             messageId: assistantMessageId,
             delta
           }),
-        onToolUse: (name) =>
+        onToolUse: (status) =>
           win?.webContents.send(IpcChannels.Notify, {
             level: 'info',
-            title: `Using tool: ${name}`
+            title: status
           })
       },
       assistantMessageId

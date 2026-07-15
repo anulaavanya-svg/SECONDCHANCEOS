@@ -1,10 +1,11 @@
 /**
- * Tool registry for the agentic chat loop.
+ * Capability registry.
  *
- * Each tool has an Anthropic JSON-schema definition and a handler. Which tools
- * are offered to the model depends on per-request toggles (files, research,
- * automation) plus the always-on memory tools. Handlers return either plain
- * text or structured content blocks (used to hand images back to the model).
+ * These are the low-level "capabilities" the assistant can use: memory, files,
+ * research, screen capture, and desktop automation. They are selected by name
+ * rather than by global flags, because Nila Core and each specialized agent
+ * expose a different curated subset (see ../agents). Handlers return either
+ * plain text or structured content blocks (used to hand images to the model).
  */
 import type Anthropic from '@anthropic-ai/sdk'
 import type { AutomationAction, MemoryKind } from '@shared/types'
@@ -34,18 +35,30 @@ export interface ToolContext {
 }
 
 /** A tool result: plain string, or explicit content blocks (e.g. an image). */
-type ToolResult = string | Anthropic.ToolResultBlockParam['content']
+export type ToolResult = string | Anthropic.ToolResultBlockParam['content']
 
-interface ToolDef {
+export interface ToolDef {
   spec: Anthropic.Tool
-  /** Whether this tool is available for the given context. */
-  enabled(ctx: ToolContext): boolean
   handler(input: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult>
 }
 
-const TOOLS: ToolDef[] = [
-  /* ---------------------- memory (always on) ---------------------- */
-  {
+/** Canonical capability names, referenced by agent definitions. */
+export const Capabilities = {
+  Remember: 'remember',
+  Recall: 'recall',
+  ReadFile: 'read_file',
+  WriteFile: 'write_file',
+  ListFiles: 'list_files',
+  WebResearch: 'web_research',
+  CaptureScreen: 'capture_screen',
+  ProposeAutomation: 'propose_automation'
+} as const
+
+export type CapabilityName = (typeof Capabilities)[keyof typeof Capabilities]
+
+const TOOLS: Record<CapabilityName, ToolDef> = {
+  /* ---------------------- memory ---------------------- */
+  [Capabilities.Remember]: {
     spec: {
       name: 'remember',
       description:
@@ -70,7 +83,6 @@ const TOOLS: ToolDef[] = [
         required: ['kind', 'key', 'value']
       }
     },
-    enabled: () => true,
     async handler(input, ctx) {
       const entry = ctx.db.upsertMemory({
         kind: input.kind as MemoryKind,
@@ -82,7 +94,7 @@ const TOOLS: ToolDef[] = [
       return `Saved to memory: [${entry.kind}] ${entry.key} = ${entry.value}`
     }
   },
-  {
+  [Capabilities.Recall]: {
     spec: {
       name: 'recall',
       description: 'Search your long-term memory about the user for a keyword or phrase.',
@@ -92,7 +104,6 @@ const TOOLS: ToolDef[] = [
         required: ['query']
       }
     },
-    enabled: () => true,
     async handler(input, ctx) {
       const results = ctx.memory.search(String(input.query))
       if (results.length === 0) return 'No matching memories.'
@@ -101,7 +112,7 @@ const TOOLS: ToolDef[] = [
   },
 
   /* ---------------------- files ---------------------- */
-  {
+  [Capabilities.ReadFile]: {
     spec: {
       name: 'read_file',
       description: 'Read a UTF-8 text file from the Nila workspace. Paths are relative to the workspace.',
@@ -111,13 +122,12 @@ const TOOLS: ToolDef[] = [
         required: ['path']
       }
     },
-    enabled: (ctx) => ctx.flags.files,
     async handler(input, ctx) {
       const res = await ctx.files.read(String(input.path))
       return res.truncated ? `${res.content}\n… (truncated)` : res.content
     }
   },
-  {
+  [Capabilities.WriteFile]: {
     spec: {
       name: 'write_file',
       description:
@@ -132,13 +142,12 @@ const TOOLS: ToolDef[] = [
         required: ['path', 'content']
       }
     },
-    enabled: (ctx) => ctx.flags.files,
     async handler(input, ctx) {
       await ctx.files.write(String(input.path), String(input.content))
       return `Wrote ${Buffer.byteLength(String(input.content))} bytes to ${input.path}.`
     }
   },
-  {
+  [Capabilities.ListFiles]: {
     spec: {
       name: 'list_files',
       description: 'List files and folders in a workspace directory.',
@@ -149,7 +158,6 @@ const TOOLS: ToolDef[] = [
         }
       }
     },
-    enabled: (ctx) => ctx.flags.files,
     async handler(input, ctx) {
       const entries = await ctx.files.list(input.path ? String(input.path) : '.')
       if (entries.length === 0) return '(empty)'
@@ -160,7 +168,7 @@ const TOOLS: ToolDef[] = [
   },
 
   /* ---------------------- research ---------------------- */
-  {
+  [Capabilities.WebResearch]: {
     spec: {
       name: 'web_research',
       description:
@@ -172,7 +180,6 @@ const TOOLS: ToolDef[] = [
         required: ['query']
       }
     },
-    enabled: (ctx) => ctx.flags.research,
     async handler(input, ctx) {
       const result = await ctx.research.run({ query: String(input.query) })
       const sources = result.sources.map((s, i) => `[${i + 1}] ${s.title} — ${s.url}`).join('\n')
@@ -181,7 +188,7 @@ const TOOLS: ToolDef[] = [
   },
 
   /* ---------------------- screenshot ---------------------- */
-  {
+  [Capabilities.CaptureScreen]: {
     spec: {
       name: 'capture_screen',
       description:
@@ -189,7 +196,6 @@ const TOOLS: ToolDef[] = [
         'Use when the user asks about something visible on their screen.',
       input_schema: { type: 'object', properties: {} }
     },
-    enabled: () => true,
     async handler(_input, ctx) {
       const shot = await ctx.screenshot.capture()
       return [
@@ -202,7 +208,7 @@ const TOOLS: ToolDef[] = [
   },
 
   /* ---------------------- automation ---------------------- */
-  {
+  [Capabilities.ProposeAutomation]: {
     spec: {
       name: 'propose_automation',
       description:
@@ -238,7 +244,6 @@ const TOOLS: ToolDef[] = [
         required: ['actions']
       }
     },
-    enabled: (ctx) => ctx.flags.automation,
     async handler(input, ctx) {
       const actions = (input.actions as AutomationAction[]) ?? []
       if (!Array.isArray(actions) || actions.length === 0) {
@@ -257,16 +262,23 @@ const TOOLS: ToolDef[] = [
       }
     }
   }
-]
+}
 
+/**
+ * Selects and dispatches capabilities by name. Callers (Nila Core and each
+ * agent) decide which capability names they expose.
+ */
 export class ToolRegistry {
-  /** Anthropic tool specs enabled for this context. */
-  specs(ctx: ToolContext): Anthropic.Tool[] {
-    return TOOLS.filter((t) => t.enabled(ctx)).map((t) => t.spec)
+  /** Anthropic tool specs for the given capability names (unknown names skipped). */
+  specsFor(names: readonly string[], _ctx?: ToolContext): Anthropic.Tool[] {
+    return names
+      .map((name) => TOOLS[name as CapabilityName])
+      .filter((t): t is ToolDef => Boolean(t))
+      .map((t) => t.spec)
   }
 
-  hasAny(ctx: ToolContext): boolean {
-    return TOOLS.some((t) => t.enabled(ctx))
+  has(name: string): boolean {
+    return name in TOOLS
   }
 
   async dispatch(
@@ -274,16 +286,16 @@ export class ToolRegistry {
     input: Record<string, unknown>,
     ctx: ToolContext
   ): Promise<{ content: ToolResult; isError: boolean }> {
-    const tool = TOOLS.find((t) => t.spec.name === name)
-    if (!tool || !tool.enabled(ctx)) {
-      return { content: `Tool "${name}" is not available.`, isError: true }
+    const tool = TOOLS[name as CapabilityName]
+    if (!tool) {
+      return { content: `Capability "${name}" is not available.`, isError: true }
     }
     try {
       const content = await tool.handler(input, ctx)
       return { content, isError: false }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
-      log.warn('tool failed', name, message)
+      log.warn('capability failed', name, message)
       return { content: `Error: ${message}`, isError: true }
     }
   }

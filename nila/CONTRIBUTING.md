@@ -19,6 +19,7 @@ Settings after launch, or export `ANTHROPIC_API_KEY`).
 | Path | Purpose |
 |---|---|
 | `src/main` | Electron main process: services, IPC, automation, persistence |
+| `src/main/agents` | Nila's orchestration layer and hidden specialized agents |
 | `src/preload` | The `contextBridge` that exposes `window.nila` |
 | `src/renderer` | React UI (components, state store, lib helpers) |
 | `src/shared` | Types + IPC contract shared by both processes |

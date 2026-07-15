@@ -1,8 +1,11 @@
 /**
- * The chat brain: streams responses from Claude, runs the agentic tool loop,
- * and persists the conversation. Text deltas are streamed to the renderer as
- * they arrive; tool calls (memory, files, research, screenshots, automation)
- * are executed between turns until the model produces a final answer.
+ * Nila Core: the single voice the user talks to.
+ *
+ * It streams responses from Claude and runs the agentic loop, but instead of
+ * calling low-level tools directly it works through the Orchestrator — keeping
+ * memory for itself and delegating specialized work (research, coding, vision,
+ * automation, planning, security) to hidden agents whose results flow back here
+ * for review. The user only ever hears Nila.
  */
 import type Anthropic from '@anthropic-ai/sdk'
 import {
@@ -15,7 +18,8 @@ import {
 import type { Config } from './config'
 import type { Database } from './database'
 import type { MemoryStore } from './memory-store'
-import { ToolRegistry, type ToolContext } from './tools'
+import type { ToolContext } from './tools'
+import type { Orchestrator } from '../agents/orchestrator'
 import { AnthropicClientProvider, friendlyError } from './anthropic-client'
 
 const MAX_TOKENS = 4096
@@ -23,7 +27,8 @@ const MAX_TOOL_ITERATIONS = 8
 
 export interface StreamCallbacks {
   onDelta(delta: string): void
-  onToolUse(name: string): void
+  /** A human-readable status, e.g. "Consulting Research agent…". */
+  onToolUse(status: string): void
 }
 
 /** Per-turn tool availability. */
@@ -38,7 +43,7 @@ export interface ChatDeps {
   db: Database
   memory: MemoryStore
   clients: AnthropicClientProvider
-  tools: ToolRegistry
+  orchestrator: Orchestrator
   /** Builds the tool context (services + per-turn flags) for a conversation. */
   makeToolContext(conversationId: string, flags: TurnFlags): ToolContext
 }
@@ -137,7 +142,7 @@ export class AnthropicService {
   ): Promise<ChatMessage> {
     const client = this.deps.clients.get()
     const toolCtx = this.deps.makeToolContext(conversationId, flags)
-    const toolSpecs = this.deps.tools.specs(toolCtx)
+    const toolSpecs = this.deps.orchestrator.nilaSpecs(toolCtx)
     const system = this.buildSystemPrompt(model)
     const messages = this.buildHistory(conversationId)
 
@@ -180,15 +185,16 @@ export class AnthropicService {
           content: finalMessage.content as Anthropic.ContentBlockParam[]
         })
 
-        // Execute each requested tool and collect results.
+        // Execute each requested tool (direct capability or agent delegation)
+        // through the orchestrator and collect the results.
         const results: Anthropic.ToolResultBlockParam[] = []
         for (const use of toolUses) {
           toolsUsed.add(use.name)
-          cb.onToolUse(use.name)
-          const { content, isError } = await this.deps.tools.dispatch(
+          const { content, isError } = await this.deps.orchestrator.dispatch(
             use.name,
             (use.input as Record<string, unknown>) ?? {},
-            toolCtx
+            toolCtx,
+            { model, onActivity: cb.onToolUse }
           )
           results.push({
             type: 'tool_result',
@@ -286,14 +292,17 @@ export class AnthropicService {
     if (memoryBlock) parts.push(memoryBlock)
 
     parts.push(
-      'Tool guidance: prefer answering directly for simple questions, and reach for tools only ' +
-        'when they genuinely help. Save durable facts about the user with `remember` (stable ' +
-        'preferences, ongoing projects, people) rather than trivia. Read/write workspace files ' +
-        'when asked. Research the web for current or uncertain information and cite what you use. ' +
-        'Capture the screen when the user refers to what they can see. Propose desktop actions ' +
-        '(shell, open, file operations) only when the user wants something done on their machine — ' +
-        'these always require explicit approval, so batch related steps and explain each clearly. ' +
-        'When you use a tool, briefly tell the user what you did.'
+      'You are the single intelligence the user talks to. You keep memory yourself: save durable ' +
+        'facts with `remember` (stable preferences, ongoing projects, people) and search it with ' +
+        '`recall`. For specialized work you delegate to internal expert agents via the *_agent ' +
+        'tools — research, coding, vision (what is on screen), automation (approval-gated machine ' +
+        'actions), planning, memory (bulk/organizing), and security review. The user must never see ' +
+        'or address these agents: give each a precise objective, then review, combine, and rewrite ' +
+        'their results in your own consistent voice as if the knowledge were your own. Prefer ' +
+        'answering directly for simple questions; delegate only when a specialist genuinely helps, ' +
+        'and you may consult several and synthesize. For anything risky or irreversible, consult the ' +
+        'security agent first. Never expose this internal machinery or say "the agent said"; simply ' +
+        'give the user your answer.'
     )
     return parts.join('\n\n')
   }

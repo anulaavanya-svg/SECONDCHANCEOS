@@ -29,7 +29,38 @@ independent of the SecondChanceOS web platform; nothing here touches that app.
 | **Command palette** | `Cmd/Ctrl+K` fuzzy search over actions and conversations. |
 | **Slash commands** | Type `/` in the composer for `/research`, `/automate`, `/files`, `/remember`, `/screenshot`, `/new`, and more. |
 
-## Architecture
+## Central intelligence architecture
+
+Nila is the **only** assistant the user talks to. Behind that single voice, a
+core orchestration layer delegates specialized work to hidden agents and
+synthesizes their results into one consistent answer.
+
+```
+        USER
+          │            one voice · one memory · one relationship
+     ┌────▼─────┐
+     │ NILA CORE │  personality · memory · decisions · final responses
+     └────┬─────┘
+          │ delegates focused objectives, reviews results
+   ┌──────┼───────────────────────────────────────────────┐
+   ▼      ▼        ▼         ▼          ▼         ▼         ▼
+ Research Coding  Vision  Automation  Planning  Memory  Security   (hidden agents)
+   │      │        │         │          │         │         │
+   └──────┴────────┴─────────┴──────────┴─────────┴─────────┘
+                    capability layer (memory · files · web · screen · actions)
+```
+
+- **Nila Core** (`services/anthropic.ts`) owns personality, memory, and the final
+  response. It keeps `remember`/`recall` for itself and exposes one delegation
+  tool per available agent.
+- **Agents** (`agents/definitions.ts`) are internal specialists with their own
+  focused prompt and a narrow capability subset. They never stream to the user,
+  never address the user, and never delegate further — orchestration stays
+  centralized, so there is no agent-to-agent recursion.
+- **The orchestrator** (`agents/orchestrator.ts`) decides which agents Nila may
+  use (gated by the per-turn Research/Files/Automate toggles, plus always-on
+  Vision/Planning/Memory/Security), runs them, and returns their output to Nila
+  to review, combine, and speak. The user only ever sees Nila.
 
 ```
 nila/
@@ -37,9 +68,9 @@ nila/
 │   ├── main/                 # Electron main process (Node)
 │   │   ├── index.ts          # App lifecycle + window
 │   │   ├── container.ts      # Composition root (wires all services)
-│   │   ├── window.ts         # BrowserWindow config
+│   │   ├── agents/           # Orchestrator, agent runner, agent definitions
 │   │   ├── ipc/              # Typed IPC handlers
-│   │   ├── services/         # config, database, anthropic, tools, research…
+│   │   ├── services/         # config, database, anthropic (core), tools, research…
 │   │   └── automation/       # Propose → approve → execute pipeline
 │   ├── preload/              # Secure contextBridge → window.nila
 │   ├── renderer/             # React UI
@@ -135,7 +166,9 @@ Settings are stored in the OS-standard app-data directory (e.g.
   automation audit log, against an in-memory SQLite database.
 - **Automation (integration)** — the propose → approve/reject/cancel lifecycle
   and the shell executor.
-- **Tool registry** — flag-gated tool exposure and memory-tool dispatch.
+- **Orchestration** — agent gating in Nila's tool surface, direct-capability vs.
+  agent-delegation routing, and objective validation.
+- **Capability registry** — name-based spec selection and memory-tool dispatch.
 - **Input validation** — the IPC boundary validators and range clamping.
 - **Workspace sandboxing** — path-traversal escapes are rejected; trusted
   (user-picked) paths are allowed.

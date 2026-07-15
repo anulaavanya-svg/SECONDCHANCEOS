@@ -1,61 +1,44 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { ToolRegistry, type ToolContext } from '../src/main/services/tools'
+import { Capabilities, ToolRegistry, type ToolContext } from '../src/main/services/tools'
 import { Database } from '../src/main/services/database'
 import { MemoryStore } from '../src/main/services/memory-store'
 
 /**
- * Exercises the tool registry: which tools are exposed for a given set of
- * per-turn flags, and the memory tools' dispatch behavior (using a real
- * in-memory database).
+ * Exercises the capability registry: name-based spec selection and dispatch of
+ * the memory capabilities against a real in-memory database.
  */
-function makeContext(flags: Partial<ToolContext['flags']>): { ctx: ToolContext; db: Database } {
+function makeContext(): { ctx: ToolContext; db: Database } {
   const db = new Database(':memory:')
   const memory = new MemoryStore(db)
   const ctx = {
     conversationId: 'c1',
     db,
     memory,
-    // These services are not invoked by the tools under test.
     files: {} as ToolContext['files'],
     research: {} as ToolContext['research'],
     screenshot: {} as ToolContext['screenshot'],
     automation: {} as ToolContext['automation'],
-    flags: { files: false, research: false, automation: false, ...flags }
+    flags: { files: false, research: false, automation: false }
   }
   return { ctx, db }
 }
 
-describe('ToolRegistry.specs', () => {
+describe('ToolRegistry.specsFor', () => {
   const registry = new ToolRegistry()
 
-  it('always exposes memory + screen tools', () => {
-    const { ctx, db } = makeContext({})
-    const names = registry.specs(ctx).map((s) => s.name)
-    expect(names).toContain('remember')
-    expect(names).toContain('recall')
-    expect(names).toContain('capture_screen')
-    // Gated tools are absent when their flags are off.
-    expect(names).not.toContain('read_file')
-    expect(names).not.toContain('web_research')
-    expect(names).not.toContain('propose_automation')
-    db.close()
+  it('returns specs for the requested capability names', () => {
+    const specs = registry.specsFor([Capabilities.Remember, Capabilities.WebResearch])
+    expect(specs.map((s) => s.name).sort()).toEqual(['remember', 'web_research'])
   })
 
-  it('exposes file tools only when the files flag is set', () => {
-    const { ctx, db } = makeContext({ files: true })
-    const names = registry.specs(ctx).map((s) => s.name)
-    expect(names).toContain('read_file')
-    expect(names).toContain('write_file')
-    expect(names).toContain('list_files')
-    db.close()
+  it('silently skips unknown names', () => {
+    const specs = registry.specsFor(['nope', Capabilities.Recall])
+    expect(specs.map((s) => s.name)).toEqual(['recall'])
   })
 
-  it('exposes research and automation tools behind their flags', () => {
-    const { ctx, db } = makeContext({ research: true, automation: true })
-    const names = registry.specs(ctx).map((s) => s.name)
-    expect(names).toContain('web_research')
-    expect(names).toContain('propose_automation')
-    db.close()
+  it('reports capability existence via has()', () => {
+    expect(registry.has('read_file')).toBe(true)
+    expect(registry.has('does_not_exist')).toBe(false)
   })
 })
 
@@ -65,7 +48,7 @@ describe('ToolRegistry.dispatch', () => {
   let db: Database
 
   beforeEach(() => {
-    const made = makeContext({})
+    const made = makeContext()
     ctx = made.ctx
     db = made.db
   })
@@ -89,14 +72,9 @@ describe('ToolRegistry.dispatch', () => {
     expect(String(result.content)).toContain('Seattle')
   })
 
-  it('rejects a disabled tool', async () => {
-    const result = await registry.dispatch('read_file', { path: 'x.txt' }, ctx)
-    expect(result.isError).toBe(true)
-    expect(String(result.content)).toContain('not available')
-  })
-
-  it('reports an error for an unknown tool', async () => {
+  it('reports an error for an unknown capability', async () => {
     const result = await registry.dispatch('does_not_exist', {}, ctx)
     expect(result.isError).toBe(true)
+    expect(String(result.content)).toContain('not available')
   })
 })

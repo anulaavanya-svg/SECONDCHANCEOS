@@ -105,14 +105,19 @@ export const MessageBubble = memo(function MessageBubble({
 
 function toolLabel(tool: string): string {
   const labels: Record<string, string> = {
+    // Direct capabilities Nila keeps for itself.
     remember: 'Saved to memory',
     recall: 'Searched memory',
-    read_file: 'Read file',
-    write_file: 'Wrote file',
-    list_files: 'Listed files',
-    web_research: 'Researched web',
-    capture_screen: 'Viewed screen',
-    propose_automation: 'Proposed action'
+    // Specialized agents Nila delegated to.
+    research_agent: 'Research agent',
+    coding_agent: 'Coding agent',
+    vision_agent: 'Vision agent',
+    automation_agent: 'Automation agent',
+    planning_agent: 'Planning agent',
+    memory_agent: 'Memory agent',
+    security_agent: 'Security agent'
   }
-  return labels[tool] ?? tool
+  if (labels[tool]) return labels[tool]
+  // Fall back to a readable title-case of the raw name.
+  return tool.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 }
