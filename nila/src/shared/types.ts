@@ -309,7 +309,13 @@ export interface NotifyPayload {
 }
 
 /** Actions dispatched from the native application menu / global shortcuts. */
-export type MenuAction = 'new-chat' | 'settings' | 'memory' | 'export' | 'toggle-theme'
+export type MenuAction =
+  | 'new-chat'
+  | 'settings'
+  | 'memory'
+  | 'export'
+  | 'toggle-theme'
+  | 'command-palette'
 
 /* ------------------------------------------------------------------ */
 /* Generic IPC envelope                                                */

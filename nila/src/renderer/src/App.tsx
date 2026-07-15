@@ -7,6 +7,7 @@ import { Sidebar } from './components/Sidebar'
 import { ChatView } from './components/ChatView'
 import { SettingsModal } from './components/SettingsModal'
 import { MemoryPanel } from './components/MemoryPanel'
+import { CommandPalette } from './components/CommandPalette'
 import { Toasts } from './components/Toasts'
 
 export function App(): JSX.Element {
@@ -31,6 +32,7 @@ export function App(): JSX.Element {
       {settings && !settings.apiKeyConfigured && <FirstRunBanner />}
       {modal === 'settings' && <SettingsModal />}
       {modal === 'memory' && <MemoryPanel />}
+      {modal === 'command' && <CommandPalette />}
       <Toasts />
     </div>
   )

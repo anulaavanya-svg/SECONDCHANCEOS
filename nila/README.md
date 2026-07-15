@@ -91,6 +91,7 @@ Driven by the native application menu, so they work on every platform:
 
 | Shortcut | Action |
 |---|---|
+| `Cmd/Ctrl + K` | Command palette (search actions & conversations) |
 | `Cmd/Ctrl + N` | New chat |
 | `Cmd/Ctrl + E` | Export conversation to Markdown |
 | `Cmd/Ctrl + M` | Open the Memory panel |

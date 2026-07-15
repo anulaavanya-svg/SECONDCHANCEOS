@@ -59,6 +59,7 @@ export function buildMenu(getWindow: () => BrowserWindow | null): void {
     {
       label: 'View',
       submenu: [
+        { label: 'Command Palette…', accelerator: 'CmdOrCtrl+K', click: send('command-palette') },
         { label: 'Memory…', accelerator: 'CmdOrCtrl+M', click: send('memory') },
         { label: 'Toggle Theme', accelerator: 'CmdOrCtrl+Shift+L', click: send('toggle-theme') },
         { type: 'separator' },

@@ -26,7 +26,7 @@ import type {
   Settings
 } from '@shared/types'
 
-export type ModalKind = 'settings' | 'memory' | null
+export type ModalKind = 'settings' | 'memory' | 'command' | null
 
 interface Toast extends NotifyPayload {
   id: number
@@ -224,6 +224,9 @@ export function AppProvider({ children }: { children: ReactNode }): JSX.Element 
           break
         case 'toggle-theme':
           toggleTheme()
+          break
+        case 'command-palette':
+          setModal((prev) => (prev === 'command' ? null : 'command'))
           break
       }
     })
