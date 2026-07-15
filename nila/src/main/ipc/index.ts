@@ -242,6 +242,13 @@ function registerFiles(services: Services): void {
     const result = await dialog.showSaveDialog({ defaultPath: defaultName })
     return result.canceled || !result.filePath ? null : result.filePath
   })
+
+  ipcMain.handle(IpcChannels.FilePickDirectory, async () => {
+    const result = await dialog.showOpenDialog({
+      properties: ['openDirectory', 'createDirectory']
+    })
+    return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0]
+  })
 }
 
 /* ------------------------------------------------------------------ */

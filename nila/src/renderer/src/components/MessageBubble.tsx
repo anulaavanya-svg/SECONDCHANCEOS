@@ -65,8 +65,10 @@ export const MessageBubble = memo(function MessageBubble({
         {content ? (
           <Markdown text={content} />
         ) : streaming ? (
-          <div className="md">
-            <span className="cursor" />
+          <div className="typing" aria-label="Nila is thinking">
+            <span />
+            <span />
+            <span />
           </div>
         ) : null}
         {streaming && content && <span className="cursor" />}

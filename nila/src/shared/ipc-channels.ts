@@ -33,6 +33,7 @@ export const IpcChannels = {
   FileList: 'file:list',
   FilePickOpen: 'file:pick-open',
   FilePickSave: 'file:pick-save',
+  FilePickDirectory: 'file:pick-directory',
   FileStat: 'file:stat',
 
   // Screenshot

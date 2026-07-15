@@ -70,6 +70,7 @@ export interface NilaApi {
     stat(path: string): Promise<FileStatResult>
     pickOpen(): Promise<string | null>
     pickSave(defaultName?: string): Promise<string | null>
+    pickDirectory(): Promise<string | null>
   }
 
   screenshot: {

@@ -54,7 +54,8 @@ const api: NilaApi = {
     list: (dir) => ipcRenderer.invoke(IpcChannels.FileList, dir),
     stat: (path) => ipcRenderer.invoke(IpcChannels.FileStat, path),
     pickOpen: () => ipcRenderer.invoke(IpcChannels.FilePickOpen),
-    pickSave: (defaultName) => ipcRenderer.invoke(IpcChannels.FilePickSave, defaultName)
+    pickSave: (defaultName) => ipcRenderer.invoke(IpcChannels.FilePickSave, defaultName),
+    pickDirectory: () => ipcRenderer.invoke(IpcChannels.FilePickDirectory)
   },
 
   screenshot: {

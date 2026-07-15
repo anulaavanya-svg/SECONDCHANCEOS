@@ -125,6 +125,16 @@ export function SettingsModal(): JSX.Element {
             value={draft.workspaceDir}
             onChange={(e) => patch({ workspaceDir: e.target.value })}
           />
+          <button
+            className="btn btn--ghost"
+            style={{ whiteSpace: 'nowrap' }}
+            onClick={async () => {
+              const dir = await window.nila.files.pickDirectory()
+              if (dir) patch({ workspaceDir: dir })
+            }}
+          >
+            Browse…
+          </button>
         </div>
         <div className="field__hint">
           File tools and automation are confined to this folder for your safety.
