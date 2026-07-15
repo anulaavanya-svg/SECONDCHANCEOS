@@ -1,0 +1,270 @@
+/**
+ * The message composer: auto-growing textarea, image attachments (paste, file,
+ * or screenshot), per-turn tool toggles (files / research / automation), model
+ * picker, push-to-talk voice input, and send/stop.
+ */
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { MODELS, type ImageAttachment, type ModelId } from '@shared/types'
+import { useApp } from '../state/store'
+import { fileToBase64 } from '../lib/format'
+import { useSpeechRecognition } from '../lib/voice'
+import {
+  CameraIcon,
+  CloseIcon,
+  FolderIcon,
+  GlobeIcon,
+  ImageIcon,
+  MicIcon,
+  SendIcon,
+  StopIcon,
+  TerminalIcon
+} from './Icons'
+
+export interface ComposerHandle {
+  setText(text: string): void
+}
+
+interface Props {
+  seededPrompt?: string
+  onConsumeSeed?: () => void
+}
+
+export function Composer({ seededPrompt, onConsumeSeed }: Props): JSX.Element {
+  const { settings, streaming, sendMessage, cancelStreaming, notify } = useApp()
+  const [text, setText] = useState('')
+  const [attachments, setAttachments] = useState<ImageAttachment[]>([])
+  const [model, setModel] = useState<ModelId>(settings?.model ?? 'claude-opus-4-8')
+  const [enableFiles, setEnableFiles] = useState(false)
+  const [enableResearch, setEnableResearch] = useState(false)
+  const [enableAutomation, setEnableAutomation] = useState(false)
+  const [capturing, setCapturing] = useState(false)
+
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const isStreaming = streaming !== null
+
+  // Sync default model when settings load/change.
+  useEffect(() => {
+    if (settings?.model) setModel(settings.model)
+  }, [settings?.model])
+
+  // Consume a seeded prompt from the welcome screen.
+  useEffect(() => {
+    if (seededPrompt) {
+      setText(seededPrompt)
+      onConsumeSeed?.()
+      textareaRef.current?.focus()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seededPrompt])
+
+  // Auto-resize the textarea.
+  useEffect(() => {
+    const el = textareaRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${Math.min(el.scrollHeight, 200)}px`
+  }, [text])
+
+  const appendTranscript = useCallback((transcript: string) => {
+    setText((prev) => (prev ? `${prev} ${transcript}` : transcript))
+    textareaRef.current?.focus()
+  }, [])
+
+  const recognition = useSpeechRecognition(appendTranscript)
+
+  const addImages = useCallback(async (files: FileList | File[]) => {
+    const images: ImageAttachment[] = []
+    for (const file of Array.from(files)) {
+      if (!file.type.startsWith('image/')) continue
+      const { data, mediaType } = await fileToBase64(file)
+      images.push({ data, mediaType, name: file.name })
+    }
+    if (images.length) setAttachments((prev) => [...prev, ...images])
+  }, [])
+
+  const onPaste = useCallback(
+    (e: React.ClipboardEvent) => {
+      const files = Array.from(e.clipboardData.files)
+      if (files.some((f) => f.type.startsWith('image/'))) {
+        void addImages(files)
+      }
+    },
+    [addImages]
+  )
+
+  const captureScreen = useCallback(async () => {
+    setCapturing(true)
+    try {
+      const shot = await window.nila.screenshot.capture()
+      setAttachments((prev) => [
+        ...prev,
+        { data: shot.data, mediaType: shot.mediaType, name: 'screenshot.png' }
+      ])
+      notify({ level: 'success', title: 'Screenshot attached', body: 'Send a message to analyze it.' })
+    } catch (err) {
+      notify({ level: 'error', title: 'Capture failed', body: String(err) })
+    } finally {
+      setCapturing(false)
+    }
+  }, [notify])
+
+  const submit = useCallback(() => {
+    const trimmed = text.trim()
+    if ((!trimmed && attachments.length === 0) || isStreaming) return
+    void sendMessage({
+      content: trimmed,
+      images: attachments.length ? attachments : undefined,
+      model,
+      enableFiles,
+      enableResearch,
+      enableAutomation
+    })
+    setText('')
+    setAttachments([])
+  }, [text, attachments, isStreaming, sendMessage, model, enableFiles, enableResearch, enableAutomation])
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      submit()
+    }
+  }
+
+  return (
+    <div className="composer">
+      <div className="composer__inner">
+        <div className="composer__box">
+          {attachments.length > 0 && (
+            <div className="composer__attachments">
+              {attachments.map((img, idx) => (
+                <div className="composer__attachment" key={idx}>
+                  <img src={`data:${img.mediaType};base64,${img.data}`} alt={img.name} />
+                  <button onClick={() => setAttachments((prev) => prev.filter((_, i) => i !== idx))}>
+                    <CloseIcon size={11} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <textarea
+            ref={textareaRef}
+            value={text}
+            rows={1}
+            placeholder={recognition.listening ? 'Listening…' : 'Message Nila…'}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={onKeyDown}
+            onPaste={onPaste}
+          />
+
+          <div className="composer__row">
+            <ToggleChip
+              active={enableResearch}
+              onClick={() => setEnableResearch((v) => !v)}
+              icon={<GlobeIcon size={14} />}
+              label="Research"
+            />
+            <ToggleChip
+              active={enableFiles}
+              onClick={() => setEnableFiles((v) => !v)}
+              icon={<FolderIcon size={14} />}
+              label="Files"
+            />
+            <ToggleChip
+              active={enableAutomation}
+              onClick={() => setEnableAutomation((v) => !v)}
+              icon={<TerminalIcon size={14} />}
+              label="Automate"
+            />
+
+            <div className="composer__spacer" />
+
+            <select
+              className="select"
+              style={{ width: 'auto', padding: '6px 8px' }}
+              value={model}
+              onChange={(e) => setModel(e.target.value as ModelId)}
+              title="Model"
+            >
+              {MODELS.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+
+            <button
+              className="icon-btn"
+              title="Attach image"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <ImageIcon size={18} />
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              hidden
+              onChange={(e) => e.target.files && addImages(e.target.files)}
+            />
+
+            <button
+              className="icon-btn"
+              title="Capture screen"
+              disabled={capturing}
+              onClick={captureScreen}
+            >
+              {capturing ? <span className="spinner" /> : <CameraIcon size={18} />}
+            </button>
+
+            {recognition.supported && (
+              <button
+                className={`icon-btn ${recognition.listening ? 'active listening' : ''}`}
+                title={recognition.listening ? 'Stop listening' : 'Speak'}
+                onClick={() => (recognition.listening ? recognition.stop() : recognition.start())}
+              >
+                <MicIcon size={18} />
+              </button>
+            )}
+
+            {isStreaming ? (
+              <button className="icon-btn icon-btn--danger active" title="Stop" onClick={cancelStreaming}>
+                <StopIcon size={18} />
+              </button>
+            ) : (
+              <button
+                className="icon-btn icon-btn--send"
+                title="Send"
+                disabled={!text.trim() && attachments.length === 0}
+                onClick={submit}
+              >
+                <SendIcon size={18} />
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ToggleChip({
+  active,
+  onClick,
+  icon,
+  label
+}: {
+  active: boolean
+  onClick: () => void
+  icon: JSX.Element
+  label: string
+}): JSX.Element {
+  return (
+    <button className={`toggle-chip ${active ? 'active' : ''}`} onClick={onClick}>
+      {icon}
+      {label}
+    </button>
+  )
+}

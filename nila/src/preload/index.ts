@@ -93,6 +93,7 @@ if (process.contextIsolated) {
   contextBridge.exposeInMainWorld('nilaEvents', automationEvents)
 } else {
   // Fallback for the (unused) non-isolated case.
-  ;(window as unknown as { nila: NilaApi }).nila = api
-  ;(window as unknown as { nilaEvents: typeof automationEvents }).nilaEvents = automationEvents
+  const g = globalThis as unknown as { nila: NilaApi; nilaEvents: typeof automationEvents }
+  g.nila = api
+  g.nilaEvents = automationEvents
 }

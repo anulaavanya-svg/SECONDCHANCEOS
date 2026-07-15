@@ -42,6 +42,9 @@ export default defineConfig({
         '@shared': resolve('src/shared')
       }
     },
+    // Nila does not use PostCSS/Tailwind; setting an explicit (empty) config
+    // stops Vite from walking up and loading the parent project's config.
+    css: { postcss: {} },
     plugins: [react()],
     build: {
       rollupOptions: {

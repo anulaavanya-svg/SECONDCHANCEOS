@@ -17,9 +17,6 @@ import type { Database } from './database'
 import type { MemoryStore } from './memory-store'
 import { ToolRegistry, type ToolContext } from './tools'
 import { AnthropicClientProvider, friendlyError } from './anthropic-client'
-import { createLogger } from './logger'
-
-const log = createLogger('anthropic')
 
 const MAX_TOKENS = 4096
 const MAX_TOOL_ITERATIONS = 8

@@ -5,7 +5,7 @@
  * desktop-automation tasks. All access goes through typed methods here so the
  * rest of the app never writes raw SQL.
  */
-import BetterSqlite3, { type Database as Db } from 'better-sqlite3'
+import BetterSqlite3 from 'better-sqlite3'
 import { randomUUID } from 'node:crypto'
 import { mkdirSync } from 'node:fs'
 import { dirname } from 'node:path'
@@ -77,7 +77,7 @@ function now(): string {
 }
 
 export class Database {
-  private readonly db: Db
+  private readonly db: BetterSqlite3.Database
 
   constructor(dbPath: string) {
     mkdirSync(dirname(dbPath), { recursive: true })

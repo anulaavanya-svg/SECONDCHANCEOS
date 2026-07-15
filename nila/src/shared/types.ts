@@ -294,7 +294,8 @@ export interface TestKeyResult {
 
 export interface AppInfo {
   version: string
-  platform: NodeJS.Platform
+  /** Node's process.platform value, e.g. "darwin" | "win32" | "linux". */
+  platform: string
   dataDir: string
   workspaceDir: string
 }
