@@ -11,7 +11,7 @@ import { Composer } from './Composer'
 import { Welcome } from './Welcome'
 
 export function ChatView(): JSX.Element {
-  const { activeId, conversations, messages, settings } = useApp()
+  const { activeId, conversations, messages, settings, exportActiveConversation } = useApp()
   const [seed, setSeed] = useState<string | undefined>()
 
   const active = conversations.find((c) => c.id === activeId)
@@ -25,6 +25,11 @@ export function ChatView(): JSX.Element {
         <div className="topbar__title">{active?.title ?? 'New chat'}</div>
         <div className="topbar__actions">
           <span className="pill">{modelLabel}</span>
+          {hasContent && (
+            <button className="btn btn--ghost" onClick={() => exportActiveConversation()} title="Export to Markdown (Ctrl/Cmd+E)">
+              Export
+            </button>
+          )}
         </div>
       </div>
 

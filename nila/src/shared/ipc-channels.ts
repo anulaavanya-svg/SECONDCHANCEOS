@@ -17,6 +17,7 @@ export const IpcChannels = {
   ConversationCreate: 'conversation:create',
   ConversationRename: 'conversation:rename',
   ConversationDelete: 'conversation:delete',
+  ConversationExport: 'conversation:export',
 
   // Memory
   MemoryList: 'memory:list',
@@ -56,7 +57,8 @@ export const IpcChannels = {
   AppOpenExternal: 'app:open-external',
 
   // Main → renderer notifications
-  Notify: 'app:notify'
+  Notify: 'app:notify',
+  MenuAction: 'app:menu-action'
 } as const
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]

@@ -11,6 +11,7 @@ import { randomUUID } from 'node:crypto'
 import { IpcChannels } from '@shared/ipc-channels'
 import type {
   AppInfo,
+  ChatMessage,
   ChatSendRequest,
   ResearchRequest,
   ScreenshotAnalyzeRequest,
@@ -110,6 +111,38 @@ function registerConversations(services: Services): void {
   ipcMain.handle(IpcChannels.ConversationDelete, (_e, id: string) => {
     services.db.deleteConversation(id)
   })
+
+  ipcMain.handle(IpcChannels.ConversationExport, async (_e, id: string) => {
+    const conversation = services.db.getConversation(id)
+    if (!conversation) throw new Error('Conversation not found.')
+    const messages = services.db.getMessages(id)
+    const markdown = conversationToMarkdown(conversation.title, messages)
+
+    const safeName = conversation.title.replace(/[^\w\- ]+/g, '').trim().slice(0, 60) || 'conversation'
+    const result = await dialog.showSaveDialog({
+      title: 'Export conversation',
+      defaultPath: `${safeName}.md`,
+      filters: [{ name: 'Markdown', extensions: ['md'] }]
+    })
+    if (result.canceled || !result.filePath) return null
+    await services.files.write(result.filePath, markdown, true)
+    return result.filePath
+  })
+}
+
+function conversationToMarkdown(title: string, messages: ChatMessage[]): string {
+  const lines: string[] = [`# ${title}`, '']
+  for (const m of messages) {
+    lines.push(`## ${m.role === 'user' ? 'You' : 'Nila'}`)
+    lines.push('')
+    lines.push(m.content)
+    if (m.toolsUsed?.length) {
+      lines.push('')
+      lines.push(`*Tools used: ${m.toolsUsed.join(', ')}*`)
+    }
+    lines.push('')
+  }
+  return lines.join('\n')
 }
 
 /* ------------------------------------------------------------------ */

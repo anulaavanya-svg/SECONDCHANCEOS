@@ -15,6 +15,7 @@ import type {
   Conversation,
   ChatMessage,
   CaptureSource,
+  MenuAction,
   FileEntry,
   FileReadResult,
   FileStatResult,
@@ -46,6 +47,8 @@ export interface NilaApi {
     create(title?: string): Promise<Conversation>
     rename(id: string, title: string): Promise<void>
     delete(id: string): Promise<void>
+    /** Export a conversation to a Markdown file. Returns the saved path, or null if cancelled. */
+    export(id: string): Promise<string | null>
   }
 
   memory: {
@@ -90,5 +93,6 @@ export interface NilaApi {
     info(): Promise<AppInfo>
     openExternal(url: string): Promise<void>
     onNotify(cb: (payload: NotifyPayload) => void): () => void
+    onMenuAction(cb: (action: MenuAction) => void): () => void
   }
 }

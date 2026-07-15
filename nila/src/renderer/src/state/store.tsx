@@ -68,6 +68,8 @@ interface AppActions {
   approveAutomation(id: string): Promise<void>
   rejectAutomation(id: string): Promise<void>
   saveSettings(update: Partial<Settings> & { apiKey?: string }): Promise<void>
+  exportActiveConversation(): Promise<void>
+  toggleTheme(): void
   notify(payload: NotifyPayload): void
   dismissToast(id: number): void
   refreshConversations(): Promise<void>
@@ -90,9 +92,12 @@ export function AppProvider({ children }: { children: ReactNode }): JSX.Element 
   const [toasts, setToasts] = useState<Toast[]>([])
   const [modal, setModal] = useState<ModalKind>(null)
 
-  // Keep a ref to the active id for use inside stable IPC callbacks.
+  // Keep refs to the latest active id / settings for use inside stable IPC
+  // callbacks (menu actions, streaming subscriptions) without stale closures.
   const activeIdRef = useRef<string | null>(null)
   activeIdRef.current = activeId
+  const settingsRef = useRef<Settings | null>(null)
+  settingsRef.current = settings
 
   const notify = useCallback((payload: NotifyPayload) => {
     const id = ++toastSeq
@@ -200,6 +205,31 @@ export function AppProvider({ children }: { children: ReactNode }): JSX.Element 
       offNotify()
     }
   }, [notify])
+
+  /* ---- native menu / global shortcut actions ---- */
+  useEffect(() => {
+    const off = window.nila.app.onMenuAction((action) => {
+      switch (action) {
+        case 'new-chat':
+          void newConversation()
+          break
+        case 'settings':
+          setModal('settings')
+          break
+        case 'memory':
+          setModal('memory')
+          break
+        case 'export':
+          void exportActiveConversation()
+          break
+        case 'toggle-theme':
+          toggleTheme()
+          break
+      }
+    })
+    return off
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   /* ---- internal helpers ---- */
   const selectConversationInternal = async (id: string) => {
@@ -318,6 +348,26 @@ export function AppProvider({ children }: { children: ReactNode }): JSX.Element 
     [applyTheme]
   )
 
+  const exportActiveConversation = useCallback(async () => {
+    const id = activeIdRef.current
+    if (!id) {
+      notify({ level: 'warning', title: 'Nothing to export', body: 'Open a conversation first.' })
+      return
+    }
+    try {
+      const path = await window.nila.conversations.export(id)
+      if (path) notify({ level: 'success', title: 'Exported', body: path })
+    } catch (err) {
+      notify({ level: 'error', title: 'Export failed', body: String(err) })
+    }
+  }, [notify])
+
+  const toggleTheme = useCallback(() => {
+    const current = settingsRef.current?.theme ?? 'system'
+    const next: Settings['theme'] = current === 'dark' ? 'light' : 'dark'
+    void saveSettings({ theme: next })
+  }, [saveSettings])
+
   const value = useMemo<AppContextValue>(
     () => ({
       ready,
@@ -339,6 +389,8 @@ export function AppProvider({ children }: { children: ReactNode }): JSX.Element 
       approveAutomation,
       rejectAutomation,
       saveSettings,
+      exportActiveConversation,
+      toggleTheme,
       notify,
       dismissToast,
       refreshConversations
@@ -362,6 +414,8 @@ export function AppProvider({ children }: { children: ReactNode }): JSX.Element 
       approveAutomation,
       rejectAutomation,
       saveSettings,
+      exportActiveConversation,
+      toggleTheme,
       notify,
       dismissToast,
       refreshConversations

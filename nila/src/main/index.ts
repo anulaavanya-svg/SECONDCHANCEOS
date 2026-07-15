@@ -7,6 +7,7 @@ import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { createServices, type Services } from './container'
 import { createMainWindow } from './window'
 import { registerIpc } from './ipc'
+import { buildMenu } from './menu'
 import { createLogger } from './services/logger'
 
 const log = createLogger('main')
@@ -41,6 +42,7 @@ if (!app.requestSingleInstanceLock()) {
 
     services = createServices(getWindow)
     registerIpc(services, getWindow)
+    buildMenu(getWindow)
 
     mainWindow = createMainWindow()
 

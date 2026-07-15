@@ -10,6 +10,7 @@ import type {
   ChatStreamChunk,
   ChatStreamDone,
   ChatStreamError,
+  MenuAction,
   NotifyPayload
 } from '@shared/types'
 
@@ -34,7 +35,8 @@ const api: NilaApi = {
     get: (id) => ipcRenderer.invoke(IpcChannels.ConversationGet, id),
     create: (title) => ipcRenderer.invoke(IpcChannels.ConversationCreate, title),
     rename: (id, title) => ipcRenderer.invoke(IpcChannels.ConversationRename, id, title),
-    delete: (id) => ipcRenderer.invoke(IpcChannels.ConversationDelete, id)
+    delete: (id) => ipcRenderer.invoke(IpcChannels.ConversationDelete, id),
+    export: (id) => ipcRenderer.invoke(IpcChannels.ConversationExport, id)
   },
 
   memory: {
@@ -78,7 +80,8 @@ const api: NilaApi = {
   app: {
     info: () => ipcRenderer.invoke(IpcChannels.AppInfo),
     openExternal: (url) => ipcRenderer.invoke(IpcChannels.AppOpenExternal, url),
-    onNotify: (cb) => on<NotifyPayload>(IpcChannels.Notify, cb)
+    onNotify: (cb) => on<NotifyPayload>(IpcChannels.Notify, cb),
+    onMenuAction: (cb) => on<MenuAction>(IpcChannels.MenuAction, cb)
   }
 }
 

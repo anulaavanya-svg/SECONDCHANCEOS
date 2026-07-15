@@ -8,6 +8,7 @@ import { MODELS, type ImageAttachment, type ModelId } from '@shared/types'
 import { useApp } from '../state/store'
 import { fileToBase64 } from '../lib/format'
 import { useSpeechRecognition } from '../lib/voice'
+import { ScreenSourcePicker } from './ScreenSourcePicker'
 import {
   CameraIcon,
   CloseIcon,
@@ -38,6 +39,7 @@ export function Composer({ seededPrompt, onConsumeSeed }: Props): JSX.Element {
   const [enableResearch, setEnableResearch] = useState(false)
   const [enableAutomation, setEnableAutomation] = useState(false)
   const [capturing, setCapturing] = useState(false)
+  const [pickerOpen, setPickerOpen] = useState(false)
 
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -93,21 +95,25 @@ export function Composer({ seededPrompt, onConsumeSeed }: Props): JSX.Element {
     [addImages]
   )
 
-  const captureScreen = useCallback(async () => {
-    setCapturing(true)
-    try {
-      const shot = await window.nila.screenshot.capture()
-      setAttachments((prev) => [
-        ...prev,
-        { data: shot.data, mediaType: shot.mediaType, name: 'screenshot.png' }
-      ])
-      notify({ level: 'success', title: 'Screenshot attached', body: 'Send a message to analyze it.' })
-    } catch (err) {
-      notify({ level: 'error', title: 'Capture failed', body: String(err) })
-    } finally {
-      setCapturing(false)
-    }
-  }, [notify])
+  const captureScreen = useCallback(
+    async (sourceId?: string) => {
+      setPickerOpen(false)
+      setCapturing(true)
+      try {
+        const shot = await window.nila.screenshot.capture(sourceId)
+        setAttachments((prev) => [
+          ...prev,
+          { data: shot.data, mediaType: shot.mediaType, name: 'screenshot.png' }
+        ])
+        notify({ level: 'success', title: 'Screenshot attached', body: 'Send a message to analyze it.' })
+      } catch (err) {
+        notify({ level: 'error', title: 'Capture failed', body: String(err) })
+      } finally {
+        setCapturing(false)
+      }
+    },
+    [notify]
+  )
 
   const submit = useCallback(() => {
     const trimmed = text.trim()
@@ -212,9 +218,9 @@ export function Composer({ seededPrompt, onConsumeSeed }: Props): JSX.Element {
 
             <button
               className="icon-btn"
-              title="Capture screen"
+              title="Capture screen or window"
               disabled={capturing}
-              onClick={captureScreen}
+              onClick={() => setPickerOpen(true)}
             >
               {capturing ? <span className="spinner" /> : <CameraIcon size={18} />}
             </button>
@@ -246,6 +252,10 @@ export function Composer({ seededPrompt, onConsumeSeed }: Props): JSX.Element {
           </div>
         </div>
       </div>
+
+      {pickerOpen && (
+        <ScreenSourcePicker onPick={(id) => captureScreen(id)} onClose={() => setPickerOpen(false)} />
+      )}
     </div>
   )
 }

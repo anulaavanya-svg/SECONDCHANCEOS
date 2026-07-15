@@ -82,6 +82,18 @@ key. You can also set `ANTHROPIC_API_KEY` in the environment to override it.
 | `npm run start` | Preview the production build. |
 | `npm run dist` | Package installers with electron-builder. |
 
+## Keyboard shortcuts
+
+Driven by the native application menu, so they work on every platform:
+
+| Shortcut | Action |
+|---|---|
+| `Cmd/Ctrl + N` | New chat |
+| `Cmd/Ctrl + E` | Export conversation to Markdown |
+| `Cmd/Ctrl + M` | Open the Memory panel |
+| `Cmd/Ctrl + ,` | Open Settings |
+| `Cmd/Ctrl + Shift + L` | Toggle light/dark theme |
+
 ## Configuration
 
 Settings are stored in the OS-standard app-data directory (e.g.
